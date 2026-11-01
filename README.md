@@ -4,15 +4,17 @@
 
 **Status:** planning complete and mutually consistent · prototype v2 built and verified · **no application code yet.**
 
-`Docs/Memory.md` is the ground truth (decision log). Everything below defers to it; the prototype v2 wins on look, the docs win on meaning.
+A private internal decision log drives this repository: the published docs defer to it; the prototype v2 wins on look, the docs win on meaning.
+
+**License & ownership:** `LICENSE` (plain-text SPDX-style, GitHub-detectable) — core idea and repository belong to Md. Shefayet Hossain ([@alltimerookie-og](https://github.com/alltimerookie-og) · <shefayet.dev@gmail.com>); all rights reserved, permission-required reuse. Contributors keep rights to their own contributions while granting the project a license to ship them (§Contributions); third-party components stay under their own upstream licenses (§Third-party Components + §Component Record).
 
 ## Map
 
 ```
 ClayBank/
 ├── README.md                        ← this index
+├── LICENSE                          ← plain-text SPDX-style: ownership alltimerookie-og · shefayet.dev@gmail.com · Md. Shefayet Hossain; CLA in §Contributions, third-party rules in §Third-party Components
 ├── Docs/                            ← product, architecture, and contract
-│   ├── Memory.md                    ← GROUND TRUTH · decision log + doc inventory + next steps
 │   ├── PRD.md                       ← product requirements (what & why)
 │   ├── Architecture.md              ← system layout: Flet app · FastAPI · SQLite/faiss
 │   ├── DataModel.md                 ← entities, fields, invariants, wire examples
@@ -21,15 +23,6 @@ ClayBank/
 │   ├── Rules.md                     ← working rules for agents/humans touching this repo
 │   ├── Phases.md                    ← ordered build plan (source of "next step")
 │   ├── GLOSSARY.md                  ← one name per concept — use these words in code
-│   ├── adr/                         ← decision records, numbered, immutable unless a decision changes
-│   │   ├── 0001-flet-over-flutter.md
-│   │   ├── 0002-tiered-extraction.md
-│   │   ├── 0003-content-acquisition-legality.md
-│   │   ├── 0004-never-persist-media.md
-│   │   ├── 0005-markdown-as-source-of-truth.md
-│   │   ├── 0006-no-auth-for-hackathon.md
-│   │   ├── 0007-extraction-library-comparison.md
-│   │   └── 0008-on-device-inference-cpu-only.md
 │   ├── api/                         ← the contract (keep green before any contract change)
 │   │   ├── README.md                ← paths, schemas, error codes, fixture workflow
 │   │   ├── openapi.yaml             ← all paths, $ref into schemas/
@@ -55,13 +48,13 @@ ClayBank/
 
 | I want to…                          | Read                                         |
 | ----------------------------------- | -------------------------------------------- |
-| Know why anything is the way it is  | `Docs/Memory.md` → `Docs/adr/`               |
+| Know why anything is the way it is  | internal decision log (private, not published in this repository) |
 | Build the backend                   | `Docs/Architecture.md` + `Docs/api/`         |
 | Build the app                       | `Docs/Architecture.md` + prototype v2        |
 | Understand the data                 | `Docs/DataModel.md` + `Docs/db/`             |
 | Change the UI                       | prototype v2 (screen truth) + `Docs/Design.md` |
 | Know the working rules              | `Docs/Rules.md`                              |
-| Know what comes next                | `Docs/Phases.md` (mirrored in `Docs/Memory.md`) |
+| Know what comes next                | `Docs/Phases.md` |
 
 ## Keeping it green
 
