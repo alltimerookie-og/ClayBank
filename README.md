@@ -13,7 +13,11 @@ A private internal decision log drives this repository: the published docs defer
 ```
 ClayBank/
 ├── README.md                        ← this index
-├── LICENSE                          ← plain-text SPDX-style: ownership alltimerookie-og · shefayet.dev@gmail.com · Md. Shefayet Hossain; CLA in §Contributions, third-party rules in §Third-party Components
+├── LICENSE                          ← ownership alltimerookie-og · shefayet.dev@gmail.com · Md. Shefayet Hossain; CLA in §Contributions, third-party rules in §Third-party Components, per-component record in §Component Record
+├── Instructions/                    ← per-role build instructions
+│   ├── README.md                    ← index + orientation order
+│   ├── ui-developer.md              ← Flet app role: fidelity to prototype v2 + honest states
+│   └── backend-developer.md         ← FastAPI backend role: contract-first, capture never blocks
 ├── Docs/                            ← product, architecture, and contract
 │   ├── PRD.md                       ← product requirements (what & why)
 │   ├── Architecture.md              ← system layout: Flet app · FastAPI · SQLite/faiss
