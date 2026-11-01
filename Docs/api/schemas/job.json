@@ -1,0 +1,42 @@
+{
+  "$id": "job.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProcessingJob",
+  "description": "One pipeline per save, streamed via stage statuses. Stages are individually skippable/failed; a save is visible from the instant of capture. States live on the job, never in frontmatter.",
+  "type": "object",
+  "required": ["save_id", "state", "tier"],
+  "properties": {
+    "save_id": { "type": "string", "format": "uuid" },
+    "state": {
+      "type": "string",
+      "enum": ["queued", "extracting", "transcribing", "analyzing", "sorting", "ready"],
+      "description": "Linear order for display; stages skip/fail independently (per-stage flags below)."
+    },
+    "tier": { "type": "integer", "enum": [1, 2], "description": "2 = agent rescue; post-hackathon." },
+    "skipped": { "type": "array", "items": { "$ref": "#/$defs/stage" } },
+    "failed": { "type": "array", "items": { "$ref": "#/$defs/stage" } },
+    "error": { "type": ["string", "null"], "description": "Last failed stage error; surfaces as a visible Inbox error state, never a silent drop." },
+    "agent_trace": {
+      "type": ["object", "null"],
+      "description": "Tier 2 only. Stored on the job. EXCLUDED from sync payloads (Rules.md).",
+      "properties": {
+        "tool_calls": { "type": "integer" },
+        "elapsed_ms": { "type": "integer" },
+        "steps": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "description": "Per-stage durations. Budget: 30 s target, 2 min cap (transcription cap separately: 10 min media).",
+      "additionalProperties": { "type": ["integer", "null"] }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "stage": {
+      "type": "string",
+      "enum": ["extracting", "transcribing", "analyzing", "sorting"]
+    }
+  }
+}

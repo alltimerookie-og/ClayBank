@@ -1,0 +1,14 @@
+{
+  "$id": "save-patch.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SavePatch",
+  "description": "Request body for PATCH /saves/{id}: mutable, user-owned fields only. The server rejects a stale write with `409 conflict` (client sends `updated_at`).",
+  "type": "object",
+  "properties": {
+    "folder_id": { "type": ["string", "null"], "format": "uuid", "description": "null = move back to the Inbox." },
+    "tag_ids": { "type": "array", "items": { "type": "string", "format": "uuid" } },
+    "user_context": { "type": "string" },
+    "updated_at": { "type": "string", "format": "date-time", "description": "Client's copy of updated_at for the stale-write check." }
+  },
+  "additionalProperties": false
+}

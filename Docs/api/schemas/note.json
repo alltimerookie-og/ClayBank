@@ -1,0 +1,42 @@
+{
+  "$id": "note.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Note",
+  "description": "The Markdown document per save — the source of truth for everything textual. Frontmatter holds stable facts only: `source, channel, video_url, duration, published, saved, folder, tags`. Confidence/processing state never appears here.",
+  "type": "object",
+  "required": ["save_id", "markdown", "frontmatter"],
+  "properties": {
+    "save_id": { "type": "string", "format": "uuid" },
+    "markdown": { "type": "string", "description": "Full document: YAML frontmatter + body. Overview + Key points + Links are LLM-guaranteed sections; others are dynamic and user-deletable." },
+    "frontmatter": {
+      "type": "object",
+      "description": "Stable facts only. Suggested_folder/confidence/processing state deliberately excluded (API metadata on save/job).",
+      "properties": {
+        "source": { "type": ["string", "null"] },
+        "channel": { "type": ["string", "null"] },
+        "video_url": { "type": ["string", "null"], "format": "uri" },
+        "duration": { "type": ["integer", "null"], "minimum": 0 },
+        "published": { "type": ["string", "null"], "format": "date" },
+        "saved": { "type": ["string", "null"], "format": "date" },
+        "folder": { "type": ["string", "null"], "description": "Folder path as text. Kept in sync by bulk rewrite on folder rename/move — not an independent field." },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "overview": { "type": ["string", "null"] },
+    "key_points": { "type": ["array", "null"], "items": { "type": "string" } },
+    "links": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string" },
+          "anchor_text": { "type": "string" },
+          "jump_target": { "type": ["string", "null"], "description": "e.g. `0:12` when spoken." }
+        }
+      }
+    },
+    "transcript": { "type": ["string", "null"], "description": "Text only. Timestamped lines. Audio/video is never stored (ADR 0004)." },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

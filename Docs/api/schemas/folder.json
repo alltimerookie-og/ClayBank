@@ -1,0 +1,24 @@
+{
+  "$id": "folder.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Folder",
+  "description": "The only container. Nested, depth<=3, one folder per save. Represents a project with a finish line, not a topic.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "id": { "type": ["string", "null"], "format": "uuid", "description": "Null in create requests." },
+    "parent_id": { "type": ["string", "null"], "format": "uuid" },
+    "name": { "type": "string", "minLength": 1 },
+    "save_count": { "type": "integer", "description": "Computed; collapses to 0 after deletes. UI hides zero counts." },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "archived_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["name"], "properties": { "name": { "enum": ["Other", "Misc", "Unsorted", "Inbox"] } } },
+      "then": false,
+      "description": "Reserved names rejected server-side (Rules.md §3): the Inbox is a state, not a folder."
+    }
+  ]
+}

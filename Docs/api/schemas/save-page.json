@@ -1,0 +1,12 @@
+{
+  "$id": "save-page.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SavePage",
+  "description": "Envelope for GET /saves (and list endpoints). Cursor pagination: absent/null cursor = last page.",
+  "type": "object",
+  "required": ["items", "cursor"],
+  "properties": {
+    "items": { "type": "array", "items": { "$ref": "save.json" } },
+    "cursor": { "type": ["string", "null"] }
+  }
+}

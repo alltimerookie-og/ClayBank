@@ -1,0 +1,30 @@
+{
+  "$id": "error.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Error",
+  "description": "Every failure body. `code` is the stable, matchable token; `message` is for display; `detail` carries recoverable data (e.g. existing_id for duplicates, conflicting payloads for 409).",
+  "type": "object",
+  "required": ["code", "message"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "enum": [
+        "already_saved",
+        "conflict",
+        "not_found",
+        "validation",
+        "contract_version_mismatch",
+        "folder_depth_exceeded",
+        "reserved_folder_name",
+        "extraction_failed",
+        "transcription_failed",
+        "asr_unavailable",
+        "llm_unavailable",
+        "index_mismatch",
+        "unauthorized"
+      ]
+    },
+    "message": { "type": "string" },
+    "detail": { "type": ["object", "null"] }
+  }
+}

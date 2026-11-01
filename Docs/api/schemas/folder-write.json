@@ -1,0 +1,21 @@
+{
+  "$id": "folder-write.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FolderWrite",
+  "description": "Request body for POST /folders (create) and PATCH /folders/{id} (rename / move / archive). Folders are user-created only — no endpoint creates folders as a side effect of extraction. Depth ≤ 3 enforced server-side (`422 folder_depth_exceeded`); renaming a folder is a bulk frontmatter rewrite of member notes (ADR 0005) and can be slow — the API stays async-tolerant.",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "parent_id": { "type": ["string", "null"], "format": "uuid" },
+    "archived_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "required": ["name"], "properties": { "name": { "enum": ["Other", "Misc", "Unsorted", "Inbox"] } } },
+      "then": false,
+      "description": "Reserved names rejected (Rules.md §3). Guard duplicated intentionally with folder.json — the contract test asserts both lists stay identical."
+    }
+  ]
+}
