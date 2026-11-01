@@ -1,0 +1,207 @@
+Claybank — License & Ownership
+==============================
+
+Copyright (c) 2026 Md. Shefayet Hossain
+GitHub: alltimerookie-og (https://github.com/alltimerookie-og)
+Email: shefayet.dev@gmail.com
+
+OWNERSHIP
+---------
+
+The core idea, concept, design, and this repository belong solely to the
+copyright holder stated above. All screens, flows, documents, prototypes,
+contracts, database schemas, source code, and marketing copy in this
+repository are original work created for and owned by the holder, unless
+explicitly marked otherwise in the COMPONENT RECORD section below.
+
+No claim is made by this file over third-party open-source components;
+dependencies (pip/npm/pub) remain under their own upstream licenses, which
+this project respects.
+
+RIGHTS
+------
+
+All rights reserved. You may read, learn from, and reference this repository,
+but you may NOT do any of the following without the prior written permission
+of the copyright holder (contact: shefayet.dev@gmail.com):
+
+  a. Reuse, copy, or fork this repository, in whole or in part, for personal
+     or commercial purposes;
+  b. Redistribute copies of this repository or its contents anywhere;
+  c. Reuse the core product concept, name, branding, or visual/interaction
+     design presented here to build a competing product;
+  d. Publish outputs derived from private code or docs in this repository
+     without attribution.
+
+Exemptions: none by default; any other use requires the copyright holder's
+written permission. AI assistants and automated agents operating at the
+owner's direction (local dev agents, CI) act on the owner's behalf and are
+not third-party users under this license.
+
+CONTRIBUTIONS
+-------------
+
+Contributors keep rights to their own work; the core stays with the
+copyright holder. The deal is:
+
+  1. Contributors own their contributions. Copyright in the specific code,
+     docs, or designs a contributor authors remains theirs (recorded in
+     "contributors.md" or the commit history; authorship in each commit is
+     the record).
+
+  2. By submitting a contribution (commit, PR, or patch to this repository),
+     a contributor grants Md. Shefayet Hossain a perpetual, worldwide,
+     irrevocable, royalty-free license to use, modify, distribute, and
+     sublicense that contribution as part of Claybank -- including
+     relicensing it to the project's overall all-rights-reserved terms.
+     Without this grant the project cannot ship, so it is automatic on
+     contribution.
+
+  3. Attribution is required in both directions: the project credits
+     contributors (in "contributors.md" and release notes); contributors
+     must not remove the project's ownership notice or claim sole ownership
+     of the project itself.
+
+  4. Core ownership is unchanged. The concept, name, brand, product
+     direction, architecture decisions, and overall repository remain
+     solely owned by Md. Shefayet Hossain (as stated in the OWNERSHIP
+     section above). Contributor rights apply to their contributed material
+     only -- never to the core idea or the repository as a whole.
+
+  5. Contributions must be the contributor's original work or carry
+     compatible third-party licensing, and must not violate the project's
+     hard boundaries (Docs/Rules.md) -- e.g. no data-training-tier provider
+     code, no media-persistence patterns.
+
+THIRD-PARTY COMPONENTS
+----------------------
+
+The repository ships and will ship open-source components it did not author.
+These rules govern them:
+
+  1. Each third-party component (pip/npm/pub dependencies, model weights,
+     pre-trained checkpoints) remains under its own upstream license. For
+     that component -- and that component only -- its upstream license takes
+     precedence over this LICENSE, and this project respects it.
+
+  2. The authoritative record of which components are used, at what version,
+     under which license, and where they are used is the COMPONENT RECORD
+     section below. Its maintenance contract (rows move from "Planned" to
+     "In use" when pinned in pyproject.toml; rows are removed when a
+     dependency is dropped) is part of these rules.
+
+  3. Attribution must be preserved: upstream copyright notices, license
+     texts, and attribution requirements are carried through unmodified --
+     in the COMPONENT RECORD section below for repository use, and shipped
+     inside the artifact's Notices section of any built artifact (APK/zip).
+
+  4. Model weights carry the license stated on their own model card (e.g.
+     multilingual-e5-small is MIT per its card). The license stated at the
+     pinned version is the one that applies; it is re-verified when the pin
+     changes.
+
+  5. Nothing in this section grants rights over this repository's own
+     content beyond each component's upstream license, and nothing shifts
+     the core ownership stated in the OWNERSHIP section above.
+
+COMPONENT RECORD
+----------------
+
+Attribution and license record for every third-party component this
+repository or the Claybank application uses, ships, or distributes.
+Nothing here shifts ownership of the core idea or this repository.
+
+Update this record as part of shipping code, not after:
+
+  - When a dependency is pinned in pyproject.toml: move its row from
+    "Planned" to "In use", fill the pinned version, and state the exact
+    license text vendored or upstream.
+  - When a dependency is removed: delete its row (history lives in the
+    commit log).
+  - When a component ships inside a built artifact (APK/zip): carry the
+    list again in the artifact's Notices section.
+  - Source of truth for versions: the lockfile/pin -- this record never
+    states a version that pyproject.toml does not.
+
+In use (current repository tooling; no app code exists yet):
+
+  +----------------+----------+----------+--------------------------------+
+  | Component      | Version  | License  | Used by                        |
+  +----------------+----------+----------+--------------------------------+
+  | jsonschema     | unpinned | MIT      | Docs/api/test_contract.py --   |
+  |                | (dev     |          | schema validation + guard      |
+  |                | tooling) |          | rails (upstream:               |
+  |                |          |          | github.com/python-jsonschema/  |
+  |                |          |          | jsonschema)                    |
+  | referencing    | unpinned | MIT      | Docs/api/test_contract.py --   |
+  |                | (dev     |          | schema registry for $ref       |
+  |                | tooling) |          | resolution (upstream:          |
+  |                |          |          | github.com/python-jsonschema/  |
+  |                |          |          | referencing)                   |
+  +----------------+----------+----------+--------------------------------+
+
+  That is the complete set -- every other import in today's repository
+  (json, pathlib, sys, sqlite3, hashlib) is Python standard library,
+  bounded by the PSF License.
+
+Planned (decided stack, per Docs/Architecture.md -- populate when pinned):
+
+  +-----------------------------+----------+-------------------------------+
+  | Component                   | Expected | Planned role                  |
+  |                             | license  |                               |
+  +-----------------------------+----------+-------------------------------+
+  | flet                        | Apache-  | UI framework                  |
+  |                             | 2.0      |                               |
+  | flet-android-notifications  | MIT      | notification spike (Phase 8)  |
+  | fastapi                     | MIT      | backend service               |
+  | uvicorn                     | BSD-3-   | ASGI server                   |
+  |                             | Clause   |                               |
+  | pydantic, pydantic-settings | MIT      | request/response models       |
+  | httpx                       | BSD-3-   | outbound HTTP (cloud ASR/LLM) |
+  |                             | Clause   |                               |
+  | aiosqlite                   | MIT      | async SQLite access           |
+  | faiss-cpu                   | MIT      | local vector index (384-dim)  |
+  | onnxruntime                 | MIT      | local embedding inference     |
+  | multilingual-e5-small       | MIT      | embeddings model (HF model    |
+  |                             |          | card states license: mit)     |
+  | faster-whisper              | MIT      | local ASR fallback (+         |
+  |                             |          | ctranslate2)                  |
+  | yt-dlp                      | Unli-    | tier-1 video metadata /       |
+  |                             | cense    | transcript acquisition        |
+  | trafilatura                 | Apache-  | tier-1 article extraction     |
+  |                             | 2.0      |                               |
+  | llama_cpp_python            | MIT      | post-hackathon on-device chat |
+  +-----------------------------+----------+-------------------------------+
+
+  All "Planned" rows carry the standing rule: verify the actual license at
+  the pinned version before moving the row to "In use". Additional notes
+  recorded in advance: trafilatura is Apache-2.0 since v1.8.0 (GPLv3+
+  before -- pin >= 1.8.0); flet-android-notifications wraps
+  flutter_local_notifications (its upstream terms apply).
+
+Services (no software license -- provider terms of service apply):
+
+  - Meta Model API (dev.meta.ai, /compat/v1): structured outputs for note
+    generation / cloud chat. Never the contributor pricing tier (it trains
+    on user data); cloud ASR likewise routed through the regular paid rate.
+  - Any other cloud provider must support the same Provider Protocol, and
+    its data terms must respect "transcripts are text and are kept; media
+    never persisted".
+
+Excluded as third-party: this repository's own content (governed
+exclusively by this LICENSE), and generated fixtures (Docs/api/fixtures/)
+authored inside Docs/api/generate_fixtures.py.
+
+WARRANTY
+--------
+
+THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IN NO EVENT
+SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE USE OF THIS REPOSITORY.
+
+Third-party components carry their own warranty and liability disclaimers
+from their upstream authors; those apply to the components themselves, as
+stated in the THIRD-PARTY COMPONENTS section above.
+
+Copyright (c) 2026 Md. Shefayet Hossain (alltimerookie-og /
+shefayet.dev@gmail.com). Claybank -- "Share it now, find it later."

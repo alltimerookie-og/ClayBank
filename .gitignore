@@ -1,1 +1,5 @@
 .playwright-mcp/
+
+# Private decision logs (kept locally, not published)
+Docs/Memory.md
+Docs/adr/
