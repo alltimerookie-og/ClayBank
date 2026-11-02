@@ -35,6 +35,7 @@ from app.shell.tokens import (
 )
 from app.ui.card import ClayCard
 from app.ui.chips import PlatformChip
+from app.views.folders.cluster_card import ClusterSuggestionCard
 from app.views.processing_card import ProcessingCard
 from app.views.quick_check_card import QuickCheckCard
 from app.views.recent_carousel import RecentSavesCarousel, format_relative_timestamp
@@ -173,6 +174,8 @@ class InboxView(ft.Container):
         on_select_save: Callable[[dict[str, Any]], None] | None = None,
         on_accept_suggestion: Callable[[str, str], None] | None = None,
         on_ignore_suggestion: Callable[[str], None] | None = None,
+        on_accept_cluster: Callable[[dict[str, Any]], None] | None = None,
+        on_ignore_cluster: Callable[[dict[str, Any]], None] | None = None,
         is_loading: bool = False,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
@@ -185,6 +188,8 @@ class InboxView(ft.Container):
         self.on_select_save = on_select_save
         self.on_accept_suggestion = on_accept_suggestion
         self.on_ignore_suggestion = on_ignore_suggestion
+        self.on_accept_cluster = on_accept_cluster
+        self.on_ignore_cluster = on_ignore_cluster
         self.theme_mode_val = theme_mode
         self._is_loading = is_loading
         self.error_message: str | None = None
@@ -417,15 +422,24 @@ class InboxView(ft.Container):
                 ft.Text("Quick Check", size=FONT_SIZE_LABEL, weight=ft.FontWeight.W_700, color=palette["muted"]),
             ]
             for sugg in self._suggestions:
-                q_card = QuickCheckCard(
-                    sugg,
-                    title=sugg.get("title", ""),
-                    platform=sugg.get("platform", "web"),
-                    on_accept=self.on_accept_suggestion,
-                    on_ignore=self.on_ignore_suggestion,
-                    theme_mode=self.theme_mode_val,
-                )
-                sugg_controls.append(q_card)
+                if sugg.get("type") == "cluster":
+                    c_card = ClusterSuggestionCard(
+                        sugg,
+                        on_accept=self.on_accept_cluster,
+                        on_ignore=self.on_ignore_cluster,
+                        theme_mode=self.theme_mode_val,
+                    )
+                    sugg_controls.append(c_card)
+                else:
+                    q_card = QuickCheckCard(
+                        sugg,
+                        title=sugg.get("title", ""),
+                        platform=sugg.get("platform", "web"),
+                        on_accept=self.on_accept_suggestion,
+                        on_ignore=self.on_ignore_suggestion,
+                        theme_mode=self.theme_mode_val,
+                    )
+                    sugg_controls.append(q_card)
             self.suggestions_column.controls = sugg_controls
             self.suggestions_column.visible = True
         else:

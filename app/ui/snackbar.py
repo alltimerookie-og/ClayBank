@@ -50,6 +50,14 @@ class UndoSnackBar(ft.SnackBar):
             open=True,
         )
 
+    @property
+    def message(self) -> str:
+        return self.message_text
+
+    def trigger_undo(self) -> None:
+        if self.on_undo is not None:
+            self.on_undo(None)
+
 
 def create_undo_snackbar(
     message: str,
