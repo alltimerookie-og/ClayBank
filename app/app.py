@@ -11,6 +11,7 @@ Derived from Docs/Phases.md Phase 2, Phase 4 & Phase 5, Docs/UIUX.md, and Protot
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any, Callable
@@ -36,7 +37,10 @@ from app.views.onboarding_view import OnboardingView
 from app.views.paste_sheet import AddLinkPasteSheet
 from app.views.search.ask_view import AskView
 from app.views.search.search_view import SearchView
+from app.views.settings.settings_view import SettingsView
 from app.views.splash_view import SplashView
+from app.views.sync.conflict_banner import create_local_edit_title
+from app.views.sync.sync_coordinator import SyncCoordinator
 
 UNDO_DURATION_MS: int = 5000
 
@@ -69,8 +73,17 @@ class ClayBankApp(ft.Container):
         on_accept_cluster: Callable[[dict[str, Any]], Any] | None = None,
         on_ignore_cluster: Callable[[dict[str, Any]], Any] | None = None,
         on_search_query: Callable[[str, str | None], list[dict[str, Any]]] | None = None,
-        on_ask_query: Callable[[str, str | None], dict[str, Any]] | None = None,
+        on_ask_query: Callable[..., dict[str, Any]] | None = None,
         search_results: list[dict[str, Any]] | None = None,
+        settings: dict[str, Any] | None = None,
+        user_profile: dict[str, Any] | None = None,
+        sync_state: dict[str, Any] | None = None,
+        storage_info: dict[str, Any] | None = None,
+        is_local_model_ready: bool = False,
+        on_update_settings: Callable[[dict[str, Any]], None] | None = None,
+        on_request_model_setup: Callable[[str], None] | None = None,
+        on_sync_pull: Callable[[str], dict[str, Any]] | None = None,
+        on_sync_push: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
         self.has_seen_onboarding = has_seen_onboarding
@@ -145,11 +158,60 @@ class ClayBankApp(ft.Container):
             theme_mode=theme_mode,
         )
 
-        # Build App Shell hosting Inbox, Folders, and Search (strictly 4 tabs)
+        # Initialize SyncCoordinator
+        self.on_update_settings = on_update_settings
+        self.on_request_model_setup = on_request_model_setup
+        self.is_local_model_ready = is_local_model_ready
+
+        self.sync_coordinator = SyncCoordinator(
+            initial_settings=settings,
+            initial_backup=(sync_state or {}).get("last_backup"),
+            initial_status=(sync_state or {}).get("sync_status", "Synced"),
+            initial_cursor=(sync_state or {}).get("cursor", "0"),
+            on_sync_pull=on_sync_pull,
+            on_sync_push=on_sync_push,
+            on_persist_settings=self.handle_persist_settings,
+            on_status_change=self.handle_sync_status_change,
+            on_conflict=self.handle_sync_conflict,
+        )
+
+        # Build Settings view for Tab 3
+        user_name = (user_profile or {}).get("name", "Md. Shefayet")
+        avatar_url = (user_profile or {}).get("avatar_url")
+        lib_bytes = (storage_info or {}).get("library_bytes", 4 * 1024 * 1024)
+        model_bytes = (storage_info or {}).get("local_model_bytes", int(1.1 * 1024 * 1024 * 1024))
+
+        self.settings_view = SettingsView(
+            user_name=user_name,
+            avatar_url=avatar_url,
+            last_backup=self.sync_coordinator.last_backup,
+            sync_status=self.sync_coordinator.sync_status,
+            chat_model=self.sync_coordinator.get_setting("chat_model", "cloud"),
+            local_model_id=self.sync_coordinator.get_setting("local_model_id", "minicpm5-2b"),
+            is_local_ready=is_local_model_ready,
+            library_bytes=lib_bytes,
+            local_model_bytes=model_bytes,
+            auto_sort=bool(self.sync_coordinator.get_setting("auto_sort", True)),
+            weekly_digest=bool(self.sync_coordinator.get_setting("weekly_digest", True)),
+            wifi_only_processing=bool(self.sync_coordinator.get_setting("wifi_only_processing", False)),
+            quick_save_notification=bool(self.sync_coordinator.get_setting("quick_save_notification", True)),
+            on_update_preference=self.handle_preference_change,
+            on_model_change=self.handle_chat_model_change,
+            on_local_model_pick=self.handle_local_model_pick,
+            on_request_model_setup=self.handle_request_model_setup,
+            on_trigger_sync=self.handle_trigger_sync,
+            on_resolve_conflict=self.handle_keep_both_conflict,
+            on_overwrite_conflict=self.handle_overwrite_conflict,
+            on_discard_conflict=self.handle_discard_conflict,
+            theme_mode=theme_mode,
+        )
+
+        # Build App Shell hosting Inbox, Folders, Search, and Settings (strictly 4 tabs)
         self.app_shell = AppShellLayout(
             inbox_view=self.inbox_view,
             folders_view=self.folders_view,
             search_view=self.search_view,
+            settings_view=self.settings_view,
             on_add_link=self.open_paste_sheet,
             initial_tab=TAB_INBOX,
             theme_mode=theme_mode,
@@ -939,6 +1001,13 @@ class ClayBankApp(ft.Container):
         self.viewport.content = self.previous_view or self.app_shell
         self.previous_view = None
 
+    def set_theme_mode(self, theme_mode: ft.ThemeMode | str) -> None:
+        """Update theme mode across application and shell."""
+        self.theme_mode_val = theme_mode
+        self.app_shell.set_theme_mode(theme_mode)
+        if hasattr(self.settings_view, "theme_mode_val"):
+            self.settings_view.theme_mode_val = theme_mode
+
     def handle_search_query(self, query: str, folder_scope: str | None = None) -> list[dict[str, Any]]:
         """Dispatch search query to callback or filter inbox saves."""
         if self.on_search_query is not None:
@@ -959,8 +1028,17 @@ class ClayBankApp(ft.Container):
         return results
 
     def handle_ask_query(self, question: str, scope: str | None = None) -> dict[str, Any]:
-        """Dispatch query to ask callback or fallback simulated grounding."""
+        """Dispatch query to ask callback or fallback simulated grounding with Settings engine."""
+        engine = self.sync_coordinator.get_setting("chat_model", "cloud")
+
         if self.on_ask_query is not None:
+            try:
+                import inspect
+                sig = inspect.signature(self.on_ask_query)
+                if len(sig.parameters) >= 3 or "engine" in sig.parameters:
+                    return self.on_ask_query(question, scope, engine)
+            except Exception:
+                pass
             return self.on_ask_query(question, scope)
 
         first_save_id = "018f4c1a-0000-7de6-9c8e-000000000001"
@@ -971,7 +1049,7 @@ class ClayBankApp(ft.Container):
         return {
             "answer": f"Relevant saves and notes were analyzed regarding \"{question}\".",
             "scope": scope or "library",
-            "engine": "cloud",
+            "engine": engine,
             "citations": [
                 {
                     "save_id": first_save_id,
@@ -980,3 +1058,100 @@ class ClayBankApp(ft.Container):
                 }
             ],
         }
+
+    # =========================================================================
+    # Phase 7: Settings and Synchronization Handlers
+    # =========================================================================
+
+    def handle_persist_settings(self, settings: dict[str, Any]) -> None:
+        """Handle persistence of updated settings."""
+        if self.on_update_settings is not None:
+            self.on_update_settings(settings)
+
+    def handle_sync_status_change(self, status: str) -> None:
+        """Propagate sync status change to SettingsView."""
+        self.settings_view.set_sync_status(status)
+
+    def handle_sync_conflict(self, conflict_data: dict[str, Any]) -> None:
+        """Propagate conflict event to SettingsView."""
+        self.settings_view.set_conflict(conflict_data)
+
+    def handle_preference_change(self, key: str, val: bool) -> None:
+        """Handle toggle of a preference switch."""
+        self.sync_coordinator.update_setting(key, val)
+
+    def handle_chat_model_change(self, model: str) -> None:
+        """Handle switch between Cloud and Local chat model."""
+        self.sync_coordinator.update_setting("chat_model", model)
+
+    def handle_local_model_pick(self, model_id: str) -> None:
+        """Handle selection of local model (MiniCPM vs Qwen)."""
+        self.sync_coordinator.update_setting("local_model_id", model_id)
+
+    def handle_request_model_setup(self, model_id: str) -> None:
+        """Handle explicit user request to set up/download a local model."""
+        if self.on_request_model_setup is not None:
+            self.on_request_model_setup(model_id)
+
+    def handle_trigger_sync(self) -> dict[str, Any]:
+        """Trigger sync cycle and update SettingsView."""
+        res = self.sync_coordinator.trigger_sync()
+        self.settings_view.set_sync_status(self.sync_coordinator.sync_status)
+        self.settings_view.set_last_backup(self.sync_coordinator.last_backup)
+        return res
+
+    def handle_keep_both_conflict(self, save_id: str, new_title: str, local_markdown: str | None) -> Any:
+        """Keep Both recovery: create local copy with '<Title> (Local Edit)' and accept server original."""
+        self.sync_coordinator.clear_conflict()
+        self.settings_view.clear_conflict()
+        new_save_id = str(uuid.uuid4())
+        new_save = {
+            "id": new_save_id,
+            "title": new_title,
+            "user_context": new_title,
+            "url": "local-edit://copy",
+            "platform": "other",
+            "needs_review": False,
+        }
+        self.inbox_view._saves.insert(0, new_save)
+        self.inbox_view.rebuild_view()
+        if local_markdown:
+            self.notes[new_save_id] = {
+                "save_id": new_save_id,
+                "markdown": local_markdown,
+                "tier": 1,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }
+        return {"status": "kept_both", "save_id": new_save_id, "title": new_title}
+
+    def handle_overwrite_conflict(self, save_id: str, local_markdown: str | None) -> Any:
+        """Overwrite server version with local edit."""
+        self.sync_coordinator.clear_conflict()
+        self.settings_view.clear_conflict()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        if local_markdown:
+            return self.handle_save_note(save_id, local_markdown, now_iso)
+        return {"status": "overwritten", "save_id": save_id}
+
+    def handle_discard_conflict(self, save_id: str) -> Any:
+        """Discard local edit and revert to server state."""
+        self.sync_coordinator.clear_conflict()
+        self.settings_view.clear_conflict()
+        return {"status": "discarded", "save_id": save_id}
+
+    def report_conflict(
+        self,
+        save_id: str,
+        note_title: str | None = None,
+        local_markdown: str | None = None,
+        server_updated_at: str | None = None,
+    ) -> dict[str, Any]:
+        """Report a 409 conflict event to coordinator and UI."""
+        conflict_data = self.sync_coordinator.register_conflict(
+            save_id=save_id,
+            note_title=note_title,
+            local_markdown=local_markdown,
+            server_updated_at=server_updated_at,
+        )
+        self.settings_view.set_conflict(conflict_data)
+        return conflict_data
