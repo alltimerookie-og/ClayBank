@@ -22,6 +22,13 @@ from app.shell.app_shell import AppShellLayout
 from app.shell.nav import TAB_FOLDERS, TAB_INBOX
 from app.shell.theme import get_palette
 from app.ui.snackbar import UndoSnackBar
+from app.views.capture import (
+    ACTION_OPEN_APP,
+    ACTION_PASTE_AND_SAVE,
+    ACTION_SHARE_TARGET,
+    NotificationCoordinator,
+    QuickSaveNotificationCard,
+)
 from app.views.folders.folder_detail_view import FolderDetailView
 from app.views.folders.folder_dialogs import (
     CreateFolderSheet,
@@ -84,6 +91,10 @@ class ClayBankApp(ft.Container):
         on_request_model_setup: Callable[[str], None] | None = None,
         on_sync_pull: Callable[[str], dict[str, Any]] | None = None,
         on_sync_push: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+        on_request_notification_permission: Callable[[], bool | None] | None = None,
+        on_post_notification: Callable[[dict[str, Any]], bool] | None = None,
+        on_dismiss_notification: Callable[[int], bool] | None = None,
+        notification_coordinator: NotificationCoordinator | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
         self.has_seen_onboarding = has_seen_onboarding
@@ -174,6 +185,19 @@ class ClayBankApp(ft.Container):
             on_status_change=self.handle_sync_status_change,
             on_conflict=self.handle_sync_conflict,
         )
+
+        # Initialize Phase 8 NotificationCoordinator
+        quick_save_pref = bool(self.sync_coordinator.get_setting("quick_save_notification", True))
+        if notification_coordinator is not None:
+            self.notification_coordinator = notification_coordinator
+        else:
+            self.notification_coordinator = NotificationCoordinator(
+                quick_save_preference=quick_save_pref,
+                on_request_permission=on_request_notification_permission,
+                on_post_notification=on_post_notification,
+                on_dismiss_notification=on_dismiss_notification,
+                on_external_capture=self.handle_external_capture,
+            )
 
         # Build Settings view for Tab 3
         user_name = (user_profile or {}).get("name", "Md. Shefayet")
@@ -328,9 +352,16 @@ class ClayBankApp(ft.Container):
         self.has_seen_onboarding = True
         self.viewport.content = self.app_shell
 
-    def open_paste_sheet(self) -> None:
+    def open_paste_sheet(
+        self,
+        *,
+        initial_url: str | None = None,
+        source_app: str | None = None,
+    ) -> None:
         """Open the AddLinkPasteSheet modal bottom sheet."""
         self.paste_sheet = AddLinkPasteSheet(
+            initial_url=initial_url,
+            source_app=source_app,
             on_submit=self.handle_capture_submit,
             on_cancel=self.close_paste_sheet,
             on_success=self.handle_capture_success,
@@ -357,6 +388,10 @@ class ClayBankApp(ft.Container):
         """Dismiss paste sheet and request inbox refresh on capture success."""
         self.close_paste_sheet()
         self.refresh_inbox()
+
+        # Phase 8: First-save permission gate for quick-save notification
+        quick_save_pref = bool(self.sync_coordinator.get_setting("quick_save_notification", True))
+        self.notification_coordinator.record_first_save_success(quick_save_preference=quick_save_pref)
 
     def refresh_inbox(self) -> None:
         """Request inbox data reload."""
@@ -1100,6 +1135,8 @@ class ClayBankApp(ft.Container):
     def handle_preference_change(self, key: str, val: bool) -> None:
         """Handle toggle of a preference switch."""
         self.sync_coordinator.update_setting(key, val)
+        if key == "quick_save_notification":
+            self.notification_coordinator.set_quick_save_preference(val)
 
     def handle_chat_model_change(self, model: str) -> None:
         """Handle switch between Cloud and Local chat model."""
@@ -1176,3 +1213,25 @@ class ClayBankApp(ft.Container):
         )
         self.settings_view.set_conflict(conflict_data)
         return conflict_data
+
+    # =========================================================================
+    # Phase 8: Capture Surfaces and Intent Handlers
+    # =========================================================================
+
+    def handle_external_capture(self, action: str, url: str | None = None) -> None:
+        """Handle external capture surface intents (notification actions or share target)."""
+        # Ensure main app shell is visible
+        if self.viewport.content != self.app_shell:
+            self.viewport.content = self.app_shell
+            self.current_note_view = None
+            self.current_folder_detail_view = None
+            self.current_ask_view = None
+
+        if action == ACTION_PASTE_AND_SAVE:
+            self.app_shell.set_tab(TAB_INBOX)
+            self.open_paste_sheet(source_app="notification")
+        elif action == ACTION_SHARE_TARGET:
+            self.app_shell.set_tab(TAB_INBOX)
+            self.open_paste_sheet(initial_url=url, source_app="share_target")
+        elif action == ACTION_OPEN_APP:
+            self.app_shell.set_tab(TAB_INBOX)
