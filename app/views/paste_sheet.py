@@ -166,7 +166,7 @@ class AddLinkPasteSheet(ClaySheet):
             self.tag_chips.append(chip)
 
         self.tags_row = ft.Row(
-            controls=self.tag_chips,
+            controls=list(self.tag_chips),
             spacing=SPACING_8,
             wrap=True,
         )
@@ -240,7 +240,7 @@ class AddLinkPasteSheet(ClaySheet):
     def clear_url(self) -> None:
         """Clear URL input and reset validation feedback."""
         self.url_field.value = ""
-        self.url_field.error_text = None
+        self.url_field.error = None
         self.feedback_text.visible = False
         self.clipboard_banner.visible = False
 
@@ -273,13 +273,13 @@ class AddLinkPasteSheet(ClaySheet):
         """Validate input, build payload, and execute submit callback."""
         url = (self.url_field.value or "").strip()
         if not url:
-            self.url_field.error_text = "URL is required"
+            self.url_field.error = "URL is required"
             return
         if not is_valid_url(url):
-            self.url_field.error_text = "Please enter a valid HTTP or HTTPS URL"
+            self.url_field.error = "Please enter a valid HTTP or HTTPS URL"
             return
 
-        self.url_field.error_text = None
+        self.url_field.error = None
         self.is_loading = True
         self.submit_button.disabled = True
         self.feedback_text.visible = False

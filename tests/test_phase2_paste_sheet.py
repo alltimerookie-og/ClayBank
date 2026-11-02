@@ -54,7 +54,7 @@ def test_paste_sheet_clear_action() -> None:
 
     sheet.clear_url()
     assert sheet.url_field.value == ""
-    assert sheet.url_field.error_text is None
+    assert sheet.url_field.error is None
     assert sheet.clipboard_banner.visible is False
 
 
@@ -87,14 +87,14 @@ def test_paste_sheet_validation_errors() -> None:
     # Empty URL
     sheet.url_field.value = ""
     sheet.submit()
-    assert sheet.url_field.error_text == "URL is required"
-    assert submitted is False
+    assert sheet.url_field.error == "URL is required"
+    assert not submitted
 
     # Invalid URL
     sheet.url_field.value = "ftp://invalid-domain"
     sheet.submit()
-    assert sheet.url_field.error_text == "Please enter a valid HTTP or HTTPS URL"
-    assert submitted is False
+    assert sheet.url_field.error == "Please enter a valid HTTP or HTTPS URL"
+    assert not submitted
 
 
 def test_paste_sheet_successful_submission() -> None:
@@ -163,4 +163,5 @@ def test_paste_sheet_cancel_callback() -> None:
 
     sheet = AddLinkPasteSheet(on_cancel=on_canc)
     sheet.cancel()
-    assert cancelled is True
+    assert cancelled
+

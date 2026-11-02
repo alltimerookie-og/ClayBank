@@ -58,7 +58,7 @@ class QuickCheckCard(ClayCard):
         self.theme_mode_val = theme_mode
 
         self.is_accepted = bool(suggestion_data.get("accepted", False))
-        self.is_ignored = bool(suggestion_data.get("dismissed_at") is not None)
+        self.is_ignored = suggestion_data.get("dismissed_at") is not None
 
         palette = get_palette(theme_mode)
 
@@ -104,7 +104,7 @@ class QuickCheckCard(ClayCard):
         )
 
         # Confidence percentage label
-        pct = int(round(self.confidence_val * 100))
+        pct = round(self.confidence_val * 100)
         self.confidence_text = ft.Text(
             value=f"{pct}% match",
             size=FONT_SIZE_MICRO,
@@ -225,3 +225,4 @@ class QuickCheckCard(ClayCard):
         """Invoke custom/alternative folder picker callback."""
         if self.on_choose_folder is not None:
             self.on_choose_folder(self.save_id)
+

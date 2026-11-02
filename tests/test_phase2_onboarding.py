@@ -39,7 +39,7 @@ def test_onboarding_step_transitions() -> None:
     view.next_step()
     assert view.current_step == 2
     assert view.step_title.value == ONBOARDING_STEPS[2]["title"]
-    assert view.back_button.visible is True
+    assert view.back_button.visible
     assert view.next_button.content == "Get Started"
     assert view.indicator_dots[2].width == 24.0
 
@@ -51,7 +51,7 @@ def test_onboarding_step_transitions() -> None:
     # Go back to Step 0
     view.previous_step()
     assert view.current_step == 0
-    assert view.back_button.visible is False
+    assert not view.back_button.visible
 
 
 def test_onboarding_completion_callback() -> None:
@@ -75,7 +75,7 @@ def test_onboarding_completion_callback() -> None:
     view.next_step()  # step 2
     view.next_step()  # triggers complete()
 
-    assert finished is True
+    assert finished
     assert persisted == {"has_seen_onboarding": True}
 
 
@@ -97,5 +97,5 @@ def test_onboarding_skip_callback() -> None:
     )
 
     view.skip()
-    assert skipped is True
+    assert skipped
     assert persisted == {"has_seen_onboarding": True}

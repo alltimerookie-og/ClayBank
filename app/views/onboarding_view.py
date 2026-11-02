@@ -163,7 +163,7 @@ class OnboardingView(ft.Container):
         )
 
         # Progress indicators (dots)
-        self.indicator_dots = [
+        self.indicator_dots: list[ft.Control] = [
             ft.Container(
                 width=24.0 if i == 0 else 8.0,
                 height=8.0,

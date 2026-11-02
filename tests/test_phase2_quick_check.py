@@ -115,14 +115,14 @@ def test_quick_check_card_undo_reversal() -> None:
     )
 
     card.accept()
-    assert card.is_accepted is True
+    assert card.is_accepted
 
     card.undo_action()
-    assert card.is_accepted is False
-    assert card.is_ignored is False
-    assert card.accept_button.disabled is False
-    assert card.status_feedback.visible is False
-    assert undo_invoked is True
+    assert not card.is_accepted
+    assert not card.is_ignored
+    assert not card.accept_button.disabled
+    assert not card.status_feedback.visible
+    assert undo_invoked
 
 
 def test_quick_check_card_choose_folder_trigger() -> None:
@@ -144,3 +144,4 @@ def test_quick_check_card_choose_folder_trigger() -> None:
 
     card.choose_folder()
     assert chosen_id == "save-folder-test"
+

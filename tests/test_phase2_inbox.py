@@ -32,7 +32,7 @@ def test_inbox_empty_state() -> None:
     assert view.empty_state_button.content == "Paste a link"
 
     view.trigger_add_link()
-    assert add_link_triggered is True
+    assert add_link_triggered
 
 
 def test_inbox_populated_from_fixtures() -> None:
@@ -73,14 +73,14 @@ def test_inbox_loading_and_error_states() -> None:
     assert view.loading_indicator.visible is True
 
     view.set_loading(False)
-    assert view.loading_indicator.visible is False
+    assert not view.loading_indicator.visible
 
     view.set_error("Failed to connect to ClayBank backend")
     assert view.error_banner.visible is True
     assert "Failed to connect" in view.error_banner_text.value
 
     view.set_error(None)
-    assert view.error_banner.visible is False
+    assert not view.error_banner.visible
 
 
 def test_inbox_degraded_save_presentation() -> None:
@@ -108,4 +108,5 @@ def test_inbox_refresh_callback() -> None:
 
     view = InboxView(on_refresh=on_ref)
     view.refresh()
-    assert refreshed is True
+    assert refreshed
+

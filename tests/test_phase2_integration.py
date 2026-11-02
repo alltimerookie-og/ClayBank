@@ -53,14 +53,14 @@ def test_app_open_and_close_paste_sheet() -> None:
 
     # Open paste sheet
     app.open_paste_sheet()
-    assert app.is_paste_sheet_open is True
-    assert app.overlay_container.visible is True
+    assert app.is_paste_sheet_open
+    assert app.overlay_container.visible
     assert app.paste_sheet is not None
 
     # Close paste sheet
     app.close_paste_sheet()
-    assert app.is_paste_sheet_open is False
-    assert app.overlay_container.visible is False
+    assert not app.is_paste_sheet_open
+    assert not app.overlay_container.visible
     assert app.paste_sheet is None
 
 
@@ -91,8 +91,8 @@ def test_app_capture_success_refreshes_inbox() -> None:
     app.paste_sheet.url_field.value = "https://example.com/new-article"
     app.paste_sheet.submit()
 
-    assert app.is_paste_sheet_open is False
-    assert refreshed is True
+    assert not app.is_paste_sheet_open
+    assert refreshed
 
 
 def test_app_suggestion_accept_triggers_5s_undo_snackbar() -> None:
@@ -119,3 +119,4 @@ def test_app_suggestion_ignore_triggers_5s_undo_snackbar() -> None:
     assert isinstance(app.last_snackbar, UndoSnackBar)
     assert app.last_snackbar.duration == 5000
     assert "Suggestion dismissed" in app.last_snackbar.message_text
+

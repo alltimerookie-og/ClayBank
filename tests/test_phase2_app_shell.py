@@ -89,13 +89,13 @@ def test_app_shell_add_link_trigger() -> None:
     shell = AppShellLayout(on_add_link=on_add)
     # Trigger from inbox
     shell.trigger_add_link()
-    assert invoked is True
+    assert invoked
 
     # Trigger from folders tab
     invoked = False
     shell.set_tab(TAB_FOLDERS)
     shell.trigger_add_link()
-    assert invoked is True
+    assert invoked
 
 
 def test_app_shell_set_inbox_view() -> None:
@@ -125,3 +125,4 @@ def test_app_shell_theme_mode_update() -> None:
     assert shell.header.add_button.icon_color == DARK_PALETTE["accent"]
     assert shell.content_area.bgcolor == DARK_PALETTE["background"]
     assert shell.nav_bar.bgcolor == DARK_PALETTE["background"]
+
