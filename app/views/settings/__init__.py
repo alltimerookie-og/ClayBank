@@ -13,6 +13,7 @@ from app.views.settings.chat_model_card import (
 )
 from app.views.settings.privacy_banner import PRIVACY_BANNER_TEXT, PrivacyBanner
 from app.views.settings.profile_card import ProfileSyncCard
+from app.views.settings.settings_view import SettingsView
 from app.views.settings.storage_card import (
     StorageUsedCard,
     format_split_storage,
@@ -21,6 +22,7 @@ from app.views.settings.storage_card import (
 from app.views.settings.switch_card import SettingSwitchCard
 
 __all__ = [
+    "SettingsView",
     "ProfileSyncCard",
     "ChatModelCard",
     "StorageUsedCard",
