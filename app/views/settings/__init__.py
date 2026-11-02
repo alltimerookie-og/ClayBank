@@ -12,10 +12,18 @@ from app.views.settings.chat_model_card import (
     ChatModelCard,
 )
 from app.views.settings.profile_card import ProfileSyncCard
+from app.views.settings.storage_card import (
+    StorageUsedCard,
+    format_split_storage,
+    format_storage_size,
+)
 
 __all__ = [
     "ProfileSyncCard",
     "ChatModelCard",
+    "StorageUsedCard",
+    "format_storage_size",
+    "format_split_storage",
     "MODEL_MINICPM",
     "MODEL_QWEN",
     "MODEL_LABELS",
