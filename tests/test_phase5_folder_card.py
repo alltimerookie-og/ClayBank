@@ -1,5 +1,6 @@
 """Unit tests for FolderCard component (Phase 5 deliverable P5-02)."""
 
+from typing import Any
 import flet as ft
 import pytest
 
@@ -69,7 +70,9 @@ def test_folder_card_click_callback():
 
     card = FolderCard(folder_data, on_click=on_click)
     # Simulate container click
-    card.on_click(None)
+    click_fn: Any = card.on_click
+    assert callable(click_fn)
+    click_fn(None)
 
     assert len(clicked_data) == 1
     assert clicked_data[0]["name"] == "Cooking"
@@ -89,8 +92,9 @@ def test_folder_card_long_press_callback():
     }
 
     card = FolderCard(folder_data, on_long_press=on_long_press)
-    assert card.on_long_press is not None
-    card.on_long_press(None)
+    long_press_fn: Any = card.on_long_press
+    assert callable(long_press_fn)
+    long_press_fn(None)
 
     assert len(long_pressed) == 1
     assert long_pressed[0]["name"] == "Pasta"
@@ -107,3 +111,4 @@ def test_folder_card_dark_theme_compatibility():
     assert card.title_control.value == "Fitness"
     assert card.subtitle_control is not None
     assert card.subtitle_control.value == "13 saves · 2d ago"
+

@@ -53,7 +53,7 @@ def format_folder_subtitle(
 ) -> str:
     """Format subtitle string respecting the rule: if save_count <= 0, hide count."""
     effective_recency = recency or format_folder_recency(updated_at)
-    count = int(save_count) if save_count is not None else 0
+    count = save_count if save_count is not None else 0
 
     if count <= 0:
         # Save count is hidden when zero or negative
@@ -155,3 +155,4 @@ class FolderCard(ClayCard):
         )
         if on_long_press is not None:
             self.on_long_press = _handle_long_press
+

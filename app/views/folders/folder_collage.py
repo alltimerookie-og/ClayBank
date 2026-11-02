@@ -98,3 +98,4 @@ class FolderCoverCollage(ft.Container):
             padding=0,
             theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
         )
+

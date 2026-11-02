@@ -1,5 +1,6 @@
 """Unit tests for FoldersGridView (Phase 5 deliverable P5-04)."""
 
+from typing import Any
 import flet as ft
 import pytest
 
@@ -81,15 +82,23 @@ def test_folders_grid_view_2_column_layout():
     row_0 = rows[0]
     assert isinstance(row_0, ft.Row)
     assert len(row_0.controls) == 2
-    assert isinstance(row_0.controls[0].content, FolderCard)
-    assert isinstance(row_0.controls[1].content, FolderCard)
+    cell_0_0 = row_0.controls[0]
+    cell_0_1 = row_0.controls[1]
+    assert isinstance(cell_0_0, ft.Container)
+    assert isinstance(cell_0_1, ft.Container)
+    assert isinstance(cell_0_0.content, FolderCard)
+    assert isinstance(cell_0_1.content, FolderCard)
 
     row_1 = rows[1]
     assert isinstance(row_1, ft.Row)
     assert len(row_1.controls) == 2
-    assert isinstance(row_1.controls[0].content, FolderCard)
+    cell_1_0 = row_1.controls[0]
+    cell_1_1 = row_1.controls[1]
+    assert isinstance(cell_1_0, ft.Container)
+    assert isinstance(cell_1_1, ft.Container)
+    assert isinstance(cell_1_0.content, FolderCard)
     # The spacer is an empty container with expand=1
-    assert row_1.controls[1].content is None
+    assert cell_1_1.content is None
 
 
 def test_folders_grid_view_new_folder_action():
@@ -101,7 +110,9 @@ def test_folders_grid_view_new_folder_action():
         on_new_folder=lambda: actions.append("new"),
     )
 
-    grid_view.new_button.on_click(None)
+    click_fn: Any = grid_view.new_button.on_click
+    assert callable(click_fn)
+    click_fn(None)
     assert actions == ["new"]
 
 
@@ -115,7 +126,11 @@ def test_folders_grid_view_sorting_interaction():
     assert grid_view.active_sort == SORT_ALPHA
 
     first_row = grid_view.grid_column.controls[0]
-    first_card = first_row.controls[0].content
+    assert isinstance(first_row, ft.Row)
+    cell = first_row.controls[0]
+    assert isinstance(cell, ft.Container)
+    first_card = cell.content
+    assert isinstance(first_card, FolderCard)
     assert first_card.folder_name == "Art"
 
 
@@ -127,3 +142,4 @@ def test_folders_grid_view_set_folders():
     grid_view.set_folders(SAMPLE_FOLDERS)
     assert len(grid_view._raw_folders) == 3
     assert len(grid_view.grid_column.controls) == 2
+

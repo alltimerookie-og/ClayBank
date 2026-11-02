@@ -36,7 +36,7 @@ def test_cluster_suggestion_card_render():
     assert card.target_path == "Cooking"
     assert card.confidence_val == 0.88
     assert len(card.cluster_items) == 3
-    assert card.is_accepted is False
+    assert not card.is_accepted
 
     col = card.main_container
     assert isinstance(col, ft.Column)
@@ -61,7 +61,7 @@ def test_cluster_suggestion_card_accept():
 
     card.accept()
 
-    assert card.is_accepted is True
+    assert card.is_accepted
     assert len(accepted_payloads) == 1
     p = accepted_payloads[0]
     assert p["type"] == "cluster"
@@ -114,9 +114,9 @@ def test_cluster_suggestion_card_undo():
     )
 
     card.accept()
-    assert card.is_accepted is True
+    assert card.is_accepted
 
     card.undo()
-    assert card.is_accepted is False
+    assert not card.is_accepted
     assert len(undone_payloads) == 1
     assert undone_payloads[0]["accept"] is False

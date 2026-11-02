@@ -18,7 +18,8 @@ from app.shell.app_shell import AppShellLayout
 from app.shell.nav import TAB_COUNT, TAB_FOLDERS, TAB_INBOX
 from app.ui.snackbar import UndoSnackBar
 from app.views.folders.cluster_card import ClusterSuggestionCard
-from app.views.folders.folder_detail_view import FolderDetailView
+from app.views.folders.folder_detail_view import FolderDetailView, FolderSaveCard
+from app.views.folders.folder_dialogs import CreateFolderSheet, RenameFolderSheet
 from app.views.folders.folders_grid_view import FoldersGridView
 from app.views.note.note_view import ItemNoteView
 
@@ -123,7 +124,7 @@ def test_inbox_cluster_suggestion_integration():
 
     # Trigger Undo
     app.last_snackbar.trigger_undo()
-    assert save_8["folder"] is None
+    assert save_8.get("folder") is None
 
 
 def test_folder_drill_down_and_back_navigation():
@@ -174,6 +175,8 @@ def test_folder_detail_view_open_note():
 
     # Click first save card in detail view
     save_card = detail_view.saves_column.controls[0]
+    assert isinstance(save_card, FolderSaveCard)
+    assert detail_view.on_select_save is not None
     detail_view.on_select_save(save_card.save_item)
 
     assert isinstance(app.viewport.content, ItemNoteView)
@@ -197,12 +200,12 @@ def test_folder_creation_lifecycle_and_undo():
     app.open_create_folder_sheet()
     assert app.overlay_container.visible is True
     sheet = app.overlay_container.content
-    assert sheet is not None
+    assert isinstance(sheet, CreateFolderSheet)
 
     sheet.name_field.value = "Gardening"
     sheet._submit()
 
-    assert app.overlay_container.visible is False
+    assert not app.overlay_container.visible
     assert len(app._folders_collection) == initial_count + 1
     new_folder = next(f for f in app._folders_collection if f["name"] == "Gardening")
     assert new_folder is not None
@@ -230,6 +233,7 @@ def test_folder_rename_lifecycle_and_undo():
     app.open_rename_folder_sheet(cooking_folder)
     assert app.overlay_container.visible is True
     sheet = app.overlay_container.content
+    assert isinstance(sheet, RenameFolderSheet)
 
     sheet.name_field.value = "Culinary Arts"
     sheet._submit()

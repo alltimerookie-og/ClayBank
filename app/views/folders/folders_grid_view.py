@@ -326,3 +326,4 @@ class FoldersGridView(ft.Container):
             )
 
         self.grid_column.controls = grid_rows
+

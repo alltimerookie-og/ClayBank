@@ -1,5 +1,6 @@
 """Unit tests for FolderDetailView (Phase 5 deliverable P5-05)."""
 
+from typing import Any
 import flet as ft
 import pytest
 
@@ -64,7 +65,9 @@ def test_folder_detail_view_header_and_breadcrumbs():
     assert "3 saves" in view.count_text.value
     assert "Folders / Cooking" in view.breadcrumb_text.value
 
-    view.back_button.on_click(None)
+    back_fn: Any = view.back_button.on_click
+    assert callable(back_fn)
+    back_fn(None)
     assert len(back_invoked) == 1
 
 
@@ -89,7 +92,9 @@ def test_folder_detail_view_subfolders_row_navigate():
     assert pasta_chip.chip_path == "Pasta"
     assert pasta_chip.chevron is True
 
-    pasta_chip.on_click(None)
+    click_fn: Any = pasta_chip.on_click
+    assert callable(click_fn)
+    click_fn(None)
     assert len(selected_subfolders) == 1
     assert selected_subfolders[0]["name"] == "Pasta"
 
@@ -110,13 +115,18 @@ def test_folder_detail_view_tags_row_filter_in_place():
     assert view.selected_tag == "pasta"
     # Pasta is in Creamy Garlic Pasta and Classic Tomato Sauce (2 saves)
     assert len(view.saves_column.controls) == 2
-    titles = [c.save_item["title"] for c in view.saves_column.controls if isinstance(c, FolderSaveCard)]
+    titles: list[str] = []
+    for c in view.saves_column.controls:
+        if isinstance(c, FolderSaveCard):
+            titles.append(c.save_item["title"])
     assert titles == ["Creamy Garlic Pasta", "Classic Tomato Sauce"]
 
     # Filter by baking (1 save)
     view._set_tag_filter("baking")
     assert len(view.saves_column.controls) == 1
-    assert view.saves_column.controls[0].save_item["title"] == "Sourdough Bread Guide"
+    first_item = view.saves_column.controls[0]
+    assert isinstance(first_item, FolderSaveCard)
+    assert first_item.save_item["title"] == "Sourdough Bread Guide"
 
     # Reset filter
     view._set_tag_filter(None)
@@ -135,6 +145,7 @@ def test_folder_detail_view_save_click():
 
     first_card = view.saves_column.controls[0]
     assert isinstance(first_card, FolderSaveCard)
+    assert callable(first_card.on_click_callback)
     first_card.on_click_callback(first_card.save_item)
 
     assert len(clicked_saves) == 1

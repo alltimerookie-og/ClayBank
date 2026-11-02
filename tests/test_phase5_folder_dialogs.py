@@ -157,7 +157,11 @@ def test_delete_folder_confirm_dialog():
 
     dialog = DeleteFolderConfirmDialog(folder_data, on_confirm_delete=on_confirm_delete)
 
+    assert isinstance(dialog.title, ft.Text)
+    assert dialog.title.value is not None
     assert "Cooking" in dialog.title.value
+    assert isinstance(dialog.content, ft.Text)
+    assert dialog.content.value is not None
     assert "return unfiled to your Inbox" in dialog.content.value
 
     dialog._confirm()
@@ -183,9 +187,11 @@ def test_folder_context_menu_depth_limit():
 
     menu_at_depth_1 = FolderContextMenu(folder_data, folder_depth=1)
     col_1 = menu_at_depth_1.content
+    assert isinstance(col_1, ft.Column)
     action_titles_1 = [
         c.title.value
         for c in col_1.controls
         if isinstance(c, ft.ListTile) and isinstance(c.title, ft.Text)
     ]
     assert "Add subfolder" in action_titles_1
+

@@ -286,3 +286,4 @@ class ClusterSuggestionCard(ClayCard):
         """Trigger choose alternate folder flow."""
         if self.on_choose_folder:
             self.on_choose_folder(self.suggestion_data)
+

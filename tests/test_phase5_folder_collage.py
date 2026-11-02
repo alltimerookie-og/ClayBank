@@ -93,3 +93,4 @@ def test_folder_cover_collage_theme_support():
     )
     assert collage is not None
     assert len(collage.gradient_keys) == 4
+
