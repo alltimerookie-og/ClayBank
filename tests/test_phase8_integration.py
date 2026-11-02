@@ -121,8 +121,11 @@ class TestPhase8Integration:
         assert len(posted_notifications) == 2
 
     def test_external_capture_paste_and_save_opens_paste_sheet(self) -> None:
-        """Verify handle_external_capture(ACTION_PASTE_AND_SAVE) opens paste sheet with notification attribution."""
-        app = ClayBankApp(has_seen_onboarding=True)
+        """Verify handle_external_capture(ACTION_PASTE_AND_SAVE) opens paste sheet with notification attribution and reads clipboard."""
+        app = ClayBankApp(
+            has_seen_onboarding=True,
+            clipboard_reader=lambda: "https://from-shade.com/article",
+        )
         assert not app.is_paste_sheet_open
 
         app.handle_external_capture(ACTION_PASTE_AND_SAVE)
@@ -130,6 +133,7 @@ class TestPhase8Integration:
         assert app.is_paste_sheet_open
         assert app.paste_sheet is not None
         assert app.paste_sheet.source_app == "notification"
+        assert app.paste_sheet.url_field.value == "https://from-shade.com/article"
 
     def test_external_capture_share_target_prefills_intent_url(self) -> None:
         """Verify handle_external_capture(ACTION_SHARE_TARGET) prefills shared URL."""

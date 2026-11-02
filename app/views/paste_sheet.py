@@ -60,7 +60,7 @@ class AddLinkPasteSheet(ClaySheet):
         clipboard_reader: Callable[[], str | None] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
         initial_url: str | None = None,
-        source_app: str | None = None,
+        source_app: str = "manual",
     ) -> None:
         self.on_submit = on_submit
         self.on_cancel = on_cancel
@@ -250,7 +250,12 @@ class AddLinkPasteSheet(ClaySheet):
         if clip_content and is_valid_url(clip_content):
             self.url_field.value = clip_content.strip()
             self.clipboard_banner.visible = True
-            self.clipboard_banner_text.value = f"Prefilled from clipboard: {clip_content.strip()}"
+            if self.source_app == "notification":
+                self.clipboard_banner_text.value = f"Prefilled from quick-save: {clip_content.strip()}"
+            elif self.source_app == "share_target":
+                self.clipboard_banner_text.value = f"Prefilled from share: {clip_content.strip()}"
+            else:
+                self.clipboard_banner_text.value = f"Prefilled from clipboard: {clip_content.strip()}"
 
     def clear_url(self) -> None:
         """Clear URL input and reset validation feedback."""
@@ -258,7 +263,7 @@ class AddLinkPasteSheet(ClaySheet):
         self.url_field.error = None
         self.feedback_text.visible = False
         self.clipboard_banner.visible = False
-        self.source_app = "manual_paste"
+        self.source_app = "manual"
 
     def toggle_tag(self, tag: str) -> None:
         """Toggle quick tag selection."""
@@ -300,12 +305,12 @@ class AddLinkPasteSheet(ClaySheet):
         self.submit_button.disabled = True
         self.feedback_text.visible = False
 
-        if self.source_app is not None and self.source_app.strip() != "":
-            resolved_source_app = self.source_app.strip()
+        if self.source_app in ("notification", "share_target"):
+            resolved_source_app = self.source_app
         elif self.clipboard_banner.visible:
-            resolved_source_app = "clipboard"
+            resolved_source_app = "inbox_paste"
         else:
-            resolved_source_app = "manual_paste"
+            resolved_source_app = "manual"
 
         payload: dict[str, Any] = {
             "url": url,

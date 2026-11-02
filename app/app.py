@@ -95,6 +95,7 @@ class ClayBankApp(ft.Container):
         on_post_notification: Callable[[dict[str, Any]], bool] | None = None,
         on_dismiss_notification: Callable[[int], bool] | None = None,
         notification_coordinator: NotificationCoordinator | None = None,
+        clipboard_reader: Callable[[], str | None] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
         self.has_seen_onboarding = has_seen_onboarding
@@ -117,6 +118,7 @@ class ClayBankApp(ft.Container):
         self.on_ignore_cluster = on_ignore_cluster
         self.on_search_query = on_search_query
         self.on_ask_query = on_ask_query
+        self.clipboard_reader = clipboard_reader
         self.current_ask_view: AskView | None = None
 
         self._last_snackbar: UndoSnackBar | None = None
@@ -356,12 +358,14 @@ class ClayBankApp(ft.Container):
         self,
         *,
         initial_url: str | None = None,
-        source_app: str | None = None,
+        source_app: str = "manual",
+        clipboard_reader: Callable[[], str | None] | None = None,
     ) -> None:
         """Open the AddLinkPasteSheet modal bottom sheet."""
         self.paste_sheet = AddLinkPasteSheet(
             initial_url=initial_url,
             source_app=source_app,
+            clipboard_reader=clipboard_reader or self.clipboard_reader,
             on_submit=self.handle_capture_submit,
             on_cancel=self.close_paste_sheet,
             on_success=self.handle_capture_success,
