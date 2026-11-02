@@ -59,12 +59,15 @@ class AddLinkPasteSheet(ClaySheet):
         on_success: Callable[[dict[str, Any]], None] | None = None,
         clipboard_reader: Callable[[], str | None] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
+        initial_url: str | None = None,
+        source_app: str | None = None,
     ) -> None:
         self.on_submit = on_submit
         self.on_cancel = on_cancel
         self.on_success = on_success
         self.clipboard_reader = clipboard_reader
         self.theme_mode_val = theme_mode
+        self.source_app = source_app
 
         self.is_loading = False
         self.is_duplicate = False
@@ -223,8 +226,20 @@ class AddLinkPasteSheet(ClaySheet):
             theme_mode=theme_mode,
         )
 
-        # Check foreground clipboard on initial load
-        self.check_clipboard()
+        if initial_url and initial_url.strip():
+            clean_init_url = initial_url.strip()
+            self.url_field.value = clean_init_url
+            if is_valid_url(clean_init_url):
+                self.clipboard_banner.visible = True
+                if self.source_app == "share_target":
+                    self.clipboard_banner_text.value = f"Prefilled from share: {clean_init_url}"
+                elif self.source_app == "notification":
+                    self.clipboard_banner_text.value = f"Prefilled from quick-save: {clean_init_url}"
+                else:
+                    self.clipboard_banner_text.value = f"Prefilled link: {clean_init_url}"
+        else:
+            # Check foreground clipboard on initial load
+            self.check_clipboard()
 
     def check_clipboard(self) -> None:
         """Inspect foreground clipboard for a valid URL and prefill if present."""
@@ -243,6 +258,7 @@ class AddLinkPasteSheet(ClaySheet):
         self.url_field.error = None
         self.feedback_text.visible = False
         self.clipboard_banner.visible = False
+        self.source_app = "manual_paste"
 
     def toggle_tag(self, tag: str) -> None:
         """Toggle quick tag selection."""
@@ -284,9 +300,16 @@ class AddLinkPasteSheet(ClaySheet):
         self.submit_button.disabled = True
         self.feedback_text.visible = False
 
+        if self.source_app is not None and self.source_app.strip() != "":
+            resolved_source_app = self.source_app.strip()
+        elif self.clipboard_banner.visible:
+            resolved_source_app = "clipboard"
+        else:
+            resolved_source_app = "manual_paste"
+
         payload: dict[str, Any] = {
             "url": url,
-            "source_app": "clipboard" if self.clipboard_banner.visible else "manual_paste",
+            "source_app": resolved_source_app,
             "user_context": (self.context_field.value or "").strip(),
             "suggested_folder_id": None,
             "force": force,
