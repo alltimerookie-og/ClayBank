@@ -5,6 +5,11 @@ from app.views.search.ask_message import (
     AskTypingDots,
     AskUserBubble,
 )
+from app.views.search.ask_view import (
+    DEFAULT_FOLDER_PROMPTS,
+    DEFAULT_LIBRARY_PROMPTS,
+    AskView,
+)
 from app.views.search.search_result_card import (
     MATCH_REASON_LABELS,
     SearchResultCard,
@@ -34,4 +39,7 @@ __all__ = [
     "AskUserBubble",
     "AskTypingDots",
     "AskAnswerCard",
+    "AskView",
+    "DEFAULT_LIBRARY_PROMPTS",
+    "DEFAULT_FOLDER_PROMPTS",
 ]
