@@ -2,6 +2,7 @@
 
 from app.views.folders.folder_card import FolderCard, format_folder_subtitle
 from app.views.folders.folder_collage import FolderCoverCollage
+from app.views.folders.folder_detail_view import FolderDetailView, FolderSaveCard
 from app.views.folders.folder_dialogs import (
     CreateFolderSheet,
     DeleteFolderConfirmDialog,
@@ -26,6 +27,8 @@ __all__ = [
     "FolderCard",
     "FolderContextMenu",
     "FolderCoverCollage",
+    "FolderDetailView",
+    "FolderSaveCard",
     "FoldersGridView",
     "MAX_FOLDER_DEPTH",
     "RESERVED_FOLDER_NAMES",
