@@ -11,13 +11,16 @@ import shutil
 import tempfile
 import uuid
 from unittest.mock import patch
+from fastapi.testclient import TestClient
 import pytest
 
+from backend.main import create_app
 from backend.processing.media import (
     IsolatedJobMedia,
     cleanup_stale_media_directories,
     get_base_media_dir,
 )
+from backend.store.db import Store
 
 
 @pytest.mark.anyio
@@ -283,4 +286,84 @@ def test_cleanup_stale_media_directories_retries_on_locked_dir(tmp_path: Path) -
     assert cleaned == 1
     assert not locked_job.exists()
     assert call_count >= 2
+
+
+def test_lifespan_cleans_stale_media_on_startup(tmp_path: Path) -> None:
+    """Verify that FastAPI lifespan automatically purges abandoned job directories on startup.
+
+    Uses an isolated temporary directory to ensure test never touches or deletes
+    from the real system temporary directory.
+    """
+    tmp_media = tmp_path / "isolated_media_root"
+    tmp_media.mkdir(parents=True, exist_ok=True)
+
+    stale_dir = tmp_media / f"job_stale_{uuid.uuid4().hex}"
+    stale_dir.mkdir()
+    (stale_dir / "leftover.tmp").write_bytes(b"orphaned bytes")
+
+    test_db = tmp_path / "test_1.db"
+    app = create_app(store=Store(str(test_db)), media_base_dir=tmp_media)
+
+    assert stale_dir.exists()
+    with TestClient(app) as client:
+        res = client.get("/health")
+        assert res.status_code == 200
+        # Verified: the stale directory was purged automatically during startup
+        assert not stale_dir.exists()
+
+
+def test_lifespan_preserves_unrelated_files_on_startup(tmp_path: Path) -> None:
+    """Verify that FastAPI lifespan startup preserves non-job directories and files."""
+    tmp_media = tmp_path / "isolated_media_root"
+    tmp_media.mkdir(parents=True, exist_ok=True)
+
+    stale_dir = tmp_media / f"job_stale_{uuid.uuid4().hex}"
+    stale_dir.mkdir()
+    (stale_dir / "audio.part").write_bytes(b"stale chunk")
+
+    unrelated_dir = tmp_media / "cache_dir"
+    unrelated_dir.mkdir()
+    (unrelated_dir / "token.bin").write_bytes(b"preserved token")
+
+    unrelated_file = tmp_media / "notes.txt"
+    unrelated_file.write_text("keep me", encoding="utf-8")
+
+    test_db = tmp_path / "test_2.db"
+    app = create_app(store=Store(str(test_db)), media_base_dir=tmp_media)
+
+    with TestClient(app) as client:
+        res = client.get("/health")
+        assert res.status_code == 200
+
+    assert not stale_dir.exists()
+    assert unrelated_dir.exists()
+    assert (unrelated_dir / "token.bin").exists()
+    assert unrelated_file.exists()
+
+
+def test_lifespan_startup_behavior_when_cleanup_fails(tmp_path: Path) -> None:
+    """Verify that backend startup still succeeds if stale cleanup encounters locked files."""
+    tmp_media = tmp_path / "isolated_media_root"
+    tmp_media.mkdir(parents=True, exist_ok=True)
+
+    locked_job = tmp_media / f"job_locked_{uuid.uuid4().hex}"
+    locked_job.mkdir()
+    (locked_job / "locked.tmp").write_bytes(b"locked file bytes")
+
+    def mock_rmtree_always_fails(path, ignore_errors=False):
+        if not ignore_errors:
+            raise PermissionError("Access denied (simulated lock)")
+        pass
+
+    test_db = tmp_path / "test_3.db"
+    app = create_app(store=Store(str(test_db)), media_base_dir=tmp_media)
+
+    with patch("backend.processing.media.shutil.rmtree", side_effect=mock_rmtree_always_fails):
+        with TestClient(app) as client:
+            res = client.get("/health")
+            # Verified: application starts up and serves requests normally despite cleanup warning
+            assert res.status_code == 200
+            assert res.json()["data"]["ok"] is True
+
+
 
