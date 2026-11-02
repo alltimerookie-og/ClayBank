@@ -12,6 +12,13 @@ from app.views.folders.folder_dialogs import (
     validate_folder_depth,
     validate_folder_name,
 )
+from app.views.folders.folders_grid_view import (
+    SORT_ALPHA,
+    SORT_RECENT,
+    SORT_SAVES,
+    FoldersGridView,
+    sort_folders,
+)
 
 __all__ = [
     "CreateFolderSheet",
@@ -19,10 +26,15 @@ __all__ = [
     "FolderCard",
     "FolderContextMenu",
     "FolderCoverCollage",
+    "FoldersGridView",
     "MAX_FOLDER_DEPTH",
     "RESERVED_FOLDER_NAMES",
     "RenameFolderSheet",
+    "SORT_ALPHA",
+    "SORT_RECENT",
+    "SORT_SAVES",
     "format_folder_subtitle",
+    "sort_folders",
     "validate_folder_depth",
     "validate_folder_name",
 ]
