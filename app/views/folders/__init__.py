@@ -1,5 +1,6 @@
 """ClayBank Folders view package."""
 
+from app.views.folders.cluster_card import ClusterSuggestionCard
 from app.views.folders.folder_card import FolderCard, format_folder_subtitle
 from app.views.folders.folder_collage import FolderCoverCollage
 from app.views.folders.folder_detail_view import FolderDetailView, FolderSaveCard
@@ -22,6 +23,7 @@ from app.views.folders.folders_grid_view import (
 )
 
 __all__ = [
+    "ClusterSuggestionCard",
     "CreateFolderSheet",
     "DeleteFolderConfirmDialog",
     "FolderCard",
