@@ -8,7 +8,7 @@ import asyncio
 import datetime
 import logging
 import re
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlparse
 
 from backend.config import settings
@@ -113,9 +113,9 @@ class YouTubeMetadataExtractor:
 
     def _extract_info_sync(self, url: str) -> dict[str, Any]:
         """Synchronously execute yt-dlp extract_info with media download strictly disabled."""
-        import yt_dlp
+        import yt_dlp  # type: ignore[import-untyped]  # yt-dlp lacks inline PEP 561 stubs
 
-        ydl_opts = {
+        ydl_opts: dict[str, Any] = {
             "skip_download": True,
             "extract_flat": False,
             "quiet": True,
@@ -124,11 +124,11 @@ class YouTubeMetadataExtractor:
             "ignoreerrors": False,
             "socket_timeout": min(15, settings.EXTRACTION_TIMEOUT_SECONDS),
         }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if not info or not isinstance(info, dict):
+        with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
+            raw_info = ydl.extract_info(url, download=False)
+            if not raw_info or not isinstance(raw_info, dict):
                 raise ValueError("Provider returned empty or invalid metadata dictionary")
-            return info
+            return dict(raw_info)
 
     def _categorize_error(self, err: Exception) -> str:
         """Categorize exception into a safe, bounded category string."""
