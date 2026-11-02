@@ -621,3 +621,170 @@ async def test_no_permanent_html_persistence() -> None:
     # Confirm zero new HTML files were created
     html_leaks = [f for f in new_files if f.endswith(".html") or f.endswith(".htm")]
     assert len(html_leaks) == 0
+
+
+# --- Remediation Tests: CB-P3-003 & CB-P3-005 ---
+
+@pytest.mark.anyio
+async def test_dns_rebinding_rejected_by_ssrf_backend() -> None:
+    """Verify SSRFProtectedBackend detects and aborts on private/loopback resolution (CB-P3-003)."""
+    import socket
+    import httpcore
+    from unittest.mock import patch
+    from backend.extraction.transport import SSRFProtectedBackend
+
+    backend = SSRFProtectedBackend()
+
+    # Simulate DNS rebinding: host resolves to private loopback 127.0.0.1
+    fake_dns = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 80))]
+
+    with patch("socket.getaddrinfo", return_value=fake_dns):
+        with pytest.raises(httpcore.ConnectError, match="SSRF blocked"):
+            await backend.connect_tcp("rebinder.attacker.com", 80)
+
+
+@pytest.mark.anyio
+async def test_mixed_dns_responses_rejected() -> None:
+    """Verify DNS responses containing both public and private IPs are rejected (CB-P3-003)."""
+    import socket
+    import httpcore
+    from unittest.mock import patch
+    from backend.extraction.transport import SSRFProtectedBackend
+
+    backend = SSRFProtectedBackend()
+
+    # Mixed DNS response: one public, one private
+    mixed_dns = [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 80)),
+        (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.1", 80)),
+    ]
+
+    with patch("socket.getaddrinfo", return_value=mixed_dns):
+        with pytest.raises(httpcore.ConnectError, match="SSRF blocked"):
+            await backend.connect_tcp("mixed.attacker.com", 80)
+
+
+@pytest.mark.anyio
+async def test_ipv6_private_and_mapped_ipv6_rejected() -> None:
+    """Verify IPv6 ULA, link-local, and IPv4-mapped IPv6 private IPs are rejected (CB-P3-003)."""
+    import socket
+    import httpcore
+    from unittest.mock import patch
+    from backend.extraction.transport import SSRFProtectedBackend, is_private_ip
+
+    assert is_private_ip("fc00::1")  # IPv6 ULA
+    assert is_private_ip("fe80::1")  # IPv6 Link-local
+    assert is_private_ip("::ffff:127.0.0.1")  # IPv4-mapped loopback
+    assert is_private_ip("::ffff:169.254.169.254")  # IPv4-mapped cloud metadata
+    assert is_private_ip("::ffff:192.168.1.1")  # IPv4-mapped private
+    assert not is_private_ip("2606:4700:4700::1111")  # Public Cloudflare IPv6
+
+    backend = SSRFProtectedBackend()
+    mapped_dns = [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:127.0.0.1", 80, 0, 0))]
+
+    with patch("socket.getaddrinfo", return_value=mapped_dns):
+        with pytest.raises(httpcore.ConnectError, match="SSRF blocked"):
+            await backend.connect_tcp("mapped.attacker.com", 80)
+
+
+@pytest.mark.anyio
+async def test_redirect_to_private_address_and_cloud_metadata_blocked() -> None:
+    """Verify manual redirect validation rejects private IPs and cloud metadata targets (CB-P3-003)."""
+    # 1. Redirect to 169.254.169.254
+    def handler_metadata(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"Location": "http://169.254.169.254/latest/meta-data"})
+        return httpx.Response(200, text="Metadata content")
+
+    client_meta = httpx.AsyncClient(transport=httpx.MockTransport(handler_metadata))
+    extractor_meta = ArticleExtractor(client=client_meta)
+    res_meta = await extractor_meta.extract("https://example.com/start")
+    assert res_meta.kind == Kind.UNKNOWN
+    assert res_meta.source_meta.get("category") == "private_network"
+
+    # 2. Redirect to localhost loopback
+    def handler_local(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"Location": "http://127.0.0.1:8000/internal"})
+        return httpx.Response(200, text="Internal admin")
+
+    client_local = httpx.AsyncClient(transport=httpx.MockTransport(handler_local))
+    extractor_local = ArticleExtractor(client=client_local)
+    res_local = await extractor_local.extract("https://example.com/start")
+    assert res_local.kind == Kind.UNKNOWN
+    assert res_local.source_meta.get("category") == "private_network"
+
+
+@pytest.mark.anyio
+async def test_bounded_streaming_exact_cap_and_exceeded() -> None:
+    """Verify streaming response size boundaries at exact limit and exceeded limit (CB-P3-005)."""
+    # Exactly at limit (2 MB)
+    exact_data = b"A" * MAX_ARTICLE_BYTES
+
+    def handler_exact(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=exact_data, headers={"Content-Type": "text/html"})
+
+    client_exact = httpx.AsyncClient(transport=httpx.MockTransport(handler_exact))
+    extractor_exact = ArticleExtractor(client=client_exact)
+    res_exact = await extractor_exact.extract("https://example.com/exact")
+    # Content was processed by streaming; category is not oversized
+    assert res_exact.source_meta.get("category") != "oversized"
+
+    # Exceeding limit by 1 byte (2 MB + 1)
+    over_data = b"A" * (MAX_ARTICLE_BYTES + 1)
+
+    def handler_over(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=over_data, headers={"Content-Type": "text/html"})
+
+    client_over = httpx.AsyncClient(transport=httpx.MockTransport(handler_over))
+    extractor_over = ArticleExtractor(client=client_over)
+    res_over = await extractor_over.extract("https://example.com/over")
+    assert res_over.kind == Kind.UNKNOWN
+    assert res_over.source_meta.get("category") == "oversized"
+
+
+@pytest.mark.anyio
+async def test_streaming_unbounded_generator_stops_immediately_without_memory_leak() -> None:
+    """Verify streaming reader breaks immediately upon exceeding byte limit (CB-P3-005)."""
+    chunks_yielded = 0
+
+    class InfiniteByteStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            nonlocal chunks_yielded
+            while True:
+                chunks_yielded += 1
+                yield b"X" * 8192
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, stream=InfiniteByteStream(), headers={"Content-Type": "text/html"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    extractor = ArticleExtractor(client=client)
+
+    result = await extractor.extract("https://example.com/infinite")
+    assert result.kind == Kind.UNKNOWN
+    assert result.source_meta.get("category") == "oversized"
+
+    # Max 2 MB / 8 KB = 256 chunks. It must stop reading right around 257 chunks, not infinite!
+    assert 255 <= chunks_yielded <= 260
+
+
+@pytest.mark.anyio
+async def test_streaming_incorrect_and_missing_content_length() -> None:
+    """Verify streaming enforces true byte limits even if Content-Length is missing or dishonest (CB-P3-005)."""
+    oversized_body = b"P" * (MAX_ARTICLE_BYTES + 5000)
+
+    # Dishonest Content-Length: claims 100 bytes, sends 2MB+
+    def handler_dishonest(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=oversized_body,
+            headers={"Content-Type": "text/html", "Content-Length": "100"},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler_dishonest))
+    extractor = ArticleExtractor(client=client)
+
+    result = await extractor.extract("https://example.com/dishonest-cl")
+    assert result.kind == Kind.UNKNOWN
+    assert result.source_meta.get("category") == "oversized"

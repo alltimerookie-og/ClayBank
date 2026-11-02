@@ -335,3 +335,130 @@ async def test_reprocess_endpoint_requeues_job(tmp_path: Path) -> None:
     job = await store.fetchone("SELECT * FROM jobs WHERE save_id=?", (save_id,))
     assert job["state"] == "queued"
     assert job["error"] is None
+
+
+# --- Remediation Tests: CB-P3-006 (Pipeline Cancellation State) ---
+
+@pytest.mark.anyio
+async def test_pipeline_cancellation_during_extraction_resets_state_to_queued(tmp_path: Path) -> None:
+    """Verify cancellation during extraction resets jobs.state to queued and frees active job lock (CB-P3-006)."""
+    db_path = tmp_path / "test.db"
+    store = Store(str(db_path))
+    save_id = await seed_test_save(store, "https://example.com/slow-extract")
+
+    class SlowExtractor:
+        async def extract(self, url: str, platform: str) -> ExtractionResult:
+            await asyncio.sleep(0.5)
+            return ExtractionResult.empty()
+
+    engine = PipelineEngine(
+        store,
+        article_extractor=SlowExtractor(),
+        media_base_dir=tmp_path / "media",
+    )
+
+    task = asyncio.create_task(engine.process_save(save_id))
+    # Await transition into extracting state
+    job_before = None
+    for _ in range(50):
+        await asyncio.sleep(0.02)
+        job_before = await store.fetchone("SELECT state FROM jobs WHERE save_id=?", (save_id,))
+        if job_before and job_before["state"] == "extracting":
+            break
+
+    # Job is active in engine
+    assert save_id in engine._active_jobs
+    assert job_before is not None
+    assert job_before["state"] == "extracting"
+
+    # Cancel task
+    task.cancel()
+
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    # Assert active-job tracking is cleared
+    assert save_id not in engine._active_jobs
+
+    # Assert DB state was reset to queued (not left in extracting!)
+    job_after = await store.fetchone("SELECT state, error FROM jobs WHERE save_id=?", (save_id,))
+    assert job_after["state"] == "queued"
+    assert job_after["error"] is None
+
+    # Assert subsequent reprocessing succeeds immediately without duplicate-active rejection
+    quick_extractor = MockExtractor()
+    engine.article_extractor = quick_extractor
+    res_reprocess = await engine.process_save(save_id)
+    assert res_reprocess["state"] == JobState.READY
+    job_final = await store.fetchone("SELECT state FROM jobs WHERE save_id=?", (save_id,))
+    assert job_final["state"] == "ready"
+
+
+@pytest.mark.anyio
+async def test_pipeline_cancellation_during_transcription_resets_state_and_cleans_media(tmp_path: Path) -> None:
+    """Verify cancellation during ASR resets state to queued and cleans temporary media (CB-P3-006)."""
+    db_path = tmp_path / "test.db"
+    store = Store(str(db_path))
+    save_id = await seed_test_save(store, "https://youtube.com/watch?v=slow_asr")
+
+    video_result = ExtractionResult(
+        tier=1,
+        kind=Kind.VIDEO,
+        title="Video Slow ASR",
+        capability_flags=CapabilityFlags(has_audio=True, has_timeline=False, has_images=False),
+        transcript_available=False,
+    )
+    yt_extractor = MockExtractor(result=video_result)
+
+    class SlowASR:
+        async def transcribe(self, audio_path: Path, language: str | None = None) -> str:
+            await asyncio.sleep(0.5)
+            return "Transcript"
+
+    media_dir = tmp_path / "media"
+    engine = PipelineEngine(
+        store,
+        youtube_extractor=yt_extractor,
+        asr_provider=SlowASR(),
+        media_base_dir=media_dir,
+    )
+
+    def fake_fetch_audio(url: str, job_dir: Path) -> Path:
+        audio = job_dir / "audio.wav"
+        audio.write_bytes(b"RIFF_FAKE_AUDIO_DATA")
+        return audio
+
+    # Seed existing extraction result with has_audio=True
+    await engine._persist_extraction_result(save_id, video_result)
+    await engine._update_save_from_extraction(save_id, video_result)
+
+    with patch.object(engine, "_fetch_audio_sync", side_effect=fake_fetch_audio):
+        task = asyncio.create_task(engine.process_save(save_id, from_stage="transcribing"))
+        # Await transition into transcribing state
+        job_in_flight = None
+        for _ in range(50):
+            await asyncio.sleep(0.02)
+            job_in_flight = await store.fetchone("SELECT state FROM jobs WHERE save_id=?", (save_id,))
+            if job_in_flight and job_in_flight["state"] == "transcribing":
+                break
+
+        assert save_id in engine._active_jobs
+        assert job_in_flight is not None
+        assert job_in_flight["state"] == "transcribing"
+
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    # Assert active-job tracking is cleared
+    assert save_id not in engine._active_jobs
+
+    # Assert DB state reset to queued
+    job_cancelled = await store.fetchone("SELECT state, error FROM jobs WHERE save_id=?", (save_id,))
+    assert job_cancelled["state"] == "queued"
+    assert job_cancelled["error"] is None
+
+    # Assert temporary media cleaned up
+    remaining_job_dirs = list(media_dir.glob("job_*"))
+    assert len(remaining_job_dirs) == 0

@@ -10,11 +10,17 @@ import json
 import logging
 import re
 from typing import Any
+from urllib.parse import urljoin
 import xml.etree.ElementTree as ET
 
 import httpx
 
 from backend.contracts.extraction import ExtractionResult
+from backend.extraction.transport import (
+    MAX_REDIRECTS,
+    create_ssrf_protected_client,
+    validate_url_security,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -267,8 +273,10 @@ class CaptionRetriever:
         if not url or not isinstance(url, str):
             return None
 
-        # Enforce HTTPS/HTTP
-        if not (url.startswith("https://") or url.startswith("http://")):
+        # Enforce scheme and security checks (SSRF, private networks, cloud metadata)
+        is_safe, sec_cat = validate_url_security(url)
+        if not is_safe:
+            logger.warning("Caption track URL failed security check: %s (reason=%s)", url, sec_cat)
             return None
 
         fmt = track.get("ext", "")
@@ -277,14 +285,13 @@ class CaptionRetriever:
             if self._client is not None:
                 content = await self._fetch(self._client, url)
             else:
-                async with httpx.AsyncClient(
+                async with create_ssrf_protected_client(
                     timeout=httpx.Timeout(
                         connect=HTTP_CONNECT_TIMEOUT_SECONDS,
                         read=HTTP_READ_TIMEOUT_SECONDS,
                         write=5.0,
                         pool=5.0,
-                    ),
-                    follow_redirects=True,
+                    )
                 ) as client:
                     content = await self._fetch(client, url)
 
@@ -299,18 +306,78 @@ class CaptionRetriever:
             return None
 
     async def _fetch(self, client: httpx.AsyncClient, url: str) -> str | None:
-        """Fetch URL with bounded response size check."""
-        resp = await client.get(url)
-        if resp.status_code != 200:
-            logger.warning("Caption retrieval received HTTP %d", resp.status_code)
-            return None
+        """Fetch caption URL with streaming size enforcement and manual redirect validation."""
+        current_url = url
+        visited_urls: set[str] = {current_url}
+        redirect_count = 0
 
-        body_bytes = resp.content
-        if len(body_bytes) > MAX_CAPTION_SIZE_BYTES:
-            logger.warning("Caption response exceeded size cap (%d bytes)", len(body_bytes))
-            return None
+        while True:
+            is_safe, sec_cat = validate_url_security(current_url)
+            if not is_safe:
+                logger.warning("Caption URL failed security validation: %s", sec_cat)
+                return None
 
-        return body_bytes.decode("utf-8", errors="replace")
+            try:
+                async with client.stream("GET", current_url) as resp:
+                    if resp.status_code in (301, 302, 303, 307, 308):
+                        redirect_count += 1
+                        if redirect_count > MAX_REDIRECTS:
+                            logger.warning("Caption retrieval exceeded redirect limit (%d)", MAX_REDIRECTS)
+                            return None
+
+                        location = resp.headers.get("location")
+                        if not location:
+                            logger.warning("Caption redirect missing location header")
+                            return None
+
+                        next_url = urljoin(current_url, location)
+                        if next_url in visited_urls:
+                            logger.warning("Caption redirect loop detected: %s", next_url)
+                            return None
+
+                        visited_urls.add(next_url)
+                        is_safe_next, sec_cat_next = validate_url_security(next_url)
+                        if not is_safe_next:
+                            logger.warning("Caption redirect target is unsafe: %s (%s)", next_url, sec_cat_next)
+                            return None
+
+                        current_url = next_url
+                        continue
+
+                    if resp.status_code != 200:
+                        logger.warning("Caption retrieval received HTTP %d", resp.status_code)
+                        return None
+
+                    cl_header = resp.headers.get("content-length")
+                    if cl_header:
+                        try:
+                            if int(cl_header) > MAX_CAPTION_SIZE_BYTES:
+                                logger.warning("Caption response header indicates size > cap (%s bytes)", cl_header)
+                                return None
+                        except ValueError:
+                            pass
+
+                    body_chunks: list[bytes] = []
+                    total_bytes = 0
+                    oversized = False
+
+                    async for chunk in resp.aiter_bytes(chunk_size=4096):
+                        total_bytes += len(chunk)
+                        if total_bytes > MAX_CAPTION_SIZE_BYTES:
+                            oversized = True
+                            break
+                        body_chunks.append(chunk)
+
+                    if oversized:
+                        logger.warning("Caption response exceeded size cap (%d bytes) during streaming", total_bytes)
+                        return None
+
+                    raw_bytes = b"".join(body_chunks)
+                    return raw_bytes.decode("utf-8", errors="replace")
+
+            except Exception as err:
+                logger.warning("Caption streaming fetch failed: %s", type(err).__name__)
+                return None
 
 
 async def enrich_result_with_captions(

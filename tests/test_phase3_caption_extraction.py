@@ -333,3 +333,81 @@ async def test_enrich_result_with_captions_failure_preserves_metadata() -> None:
     assert "caption_language" not in enriched.source_meta
     # Because title exists, rescue is not needed
     assert not enriched.needs_tier2_rescue()
+
+
+# --- Remediation Tests: CB-P3-004 & CB-P3-005 ---
+
+@pytest.mark.anyio
+async def test_caption_fetch_private_ip_and_loopback_rejected() -> None:
+    """Verify caption retriever rejects private and loopback targets (CB-P3-004)."""
+    from backend.extraction.captions import CaptionRetriever
+
+    retriever = CaptionRetriever()
+
+    # Loopback
+    res_loop = await retriever.retrieve_and_parse({"url": "http://127.0.0.1/subtitles.vtt", "ext": "vtt"})
+    assert res_loop is None
+
+    # Private IPv4
+    res_priv = await retriever.retrieve_and_parse({"url": "http://192.168.1.50/subtitles.vtt", "ext": "vtt"})
+    assert res_priv is None
+
+    # Cloud metadata
+    res_meta = await retriever.retrieve_and_parse({"url": "http://169.254.169.254/subtitles.vtt", "ext": "vtt"})
+    assert res_meta is None
+
+    # IPv6 loopback
+    res_ipv6 = await retriever.retrieve_and_parse({"url": "http://[::1]/subtitles.vtt", "ext": "vtt"})
+    assert res_ipv6 is None
+
+
+@pytest.mark.anyio
+async def test_caption_fetch_redirect_to_private_target_rejected() -> None:
+    """Verify caption retriever aborts if public URL redirects to a private IP (CB-P3-004)."""
+    from backend.extraction.captions import CaptionRetriever
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/redirect":
+            return httpx.Response(302, headers={"Location": "http://169.254.169.254/meta"})
+        return httpx.Response(200, text="Unreachable")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    retriever = CaptionRetriever(client=client)
+
+    res = await retriever.retrieve_and_parse({"url": "https://example.com/redirect", "ext": "vtt"})
+    assert res is None
+
+
+@pytest.mark.anyio
+async def test_caption_fetch_redirect_loop_and_limit() -> None:
+    """Verify caption retriever detects redirect loops and enforces limit (CB-P3-004)."""
+    from backend.extraction.captions import CaptionRetriever
+
+    # Loop: /a -> /b -> /a
+    def handler_loop(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/a":
+            return httpx.Response(302, headers={"Location": "https://example.com/b"})
+        return httpx.Response(302, headers={"Location": "https://example.com/a"})
+
+    client_loop = httpx.AsyncClient(transport=httpx.MockTransport(handler_loop))
+    retriever_loop = CaptionRetriever(client=client_loop)
+    res_loop = await retriever_loop.retrieve_and_parse({"url": "https://example.com/a", "ext": "vtt"})
+    assert res_loop is None
+
+
+@pytest.mark.anyio
+async def test_caption_streaming_oversized_rejected() -> None:
+    """Verify streaming caption fetch rejects responses exceeding 512 KB (CB-P3-005)."""
+    from backend.extraction.captions import CaptionRetriever, MAX_CAPTION_SIZE_BYTES
+
+    oversized_vtt = b"WEBVTT\n\n" + (b"00:00:00.000 --> 00:00:01.000\nText\n" * 20000)
+    assert len(oversized_vtt) > MAX_CAPTION_SIZE_BYTES
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=oversized_vtt)
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    retriever = CaptionRetriever(client=client)
+
+    res = await retriever.retrieve_and_parse({"url": "https://example.com/too_big.vtt", "ext": "vtt"})
+    assert res is None

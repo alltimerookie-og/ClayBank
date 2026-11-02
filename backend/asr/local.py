@@ -138,9 +138,43 @@ class FasterWhisperLocalProvider:
         self._allowed_media_dir = allowed_media_dir
         self._model = model
         self._inference_lock = asyncio.Lock()
+        self._init_lock = asyncio.Lock()
+        self._active_worker: asyncio.Future[Any] | None = None
+
+    async def _get_model_async(self) -> Any:
+        """Lazily initialize or return cached WhisperModel instance thread-safely."""
+        if self._model is not None:
+            return self._model
+
+        async with self._init_lock:
+            if self._model is not None:
+                return self._model
+
+            try:
+                from faster_whisper import WhisperModel
+            except ImportError as exc:
+                raise RuntimeError("faster-whisper is not installed or available") from exc
+
+            try:
+                loop = asyncio.get_running_loop()
+                model = await loop.run_in_executor(
+                    None,
+                    lambda: WhisperModel(
+                        self.model_size,
+                        device=self.device,
+                        compute_type=self.compute_type,
+                        cpu_threads=self.cpu_threads,
+                    ),
+                )
+                self._model = model
+                return self._model
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Failed to initialize faster-whisper model '{self.model_size}': {exc}"
+                ) from exc
 
     def _get_model(self) -> Any:
-        """Lazily initialize or return the cached WhisperModel instance."""
+        """Lazily initialize or return cached WhisperModel instance synchronously."""
         if self._model is not None:
             return self._model
 
@@ -192,24 +226,44 @@ class FasterWhisperLocalProvider:
         if duration > cap:
             raise ValueError(f"Audio duration ({duration:.1f}s) exceeds maximum allowed cap ({cap}s)")
 
-        # 3. Lazily initialize model
-        model = self._get_model()
+        # 3. Synchronized model resolution (guarantees exactly one initialization)
+        model = await self._get_model_async()
 
         # 4. Execute transcription off the event loop under inference lock
-        # Serializes execution on CPU hardware to prevent resource exhaustion and race conditions.
-        # Note on Python timeout/cancellation limitation:
-        # asyncio.to_thread() awaits a worker thread in Python's default thread pool.
-        # Cancelling the coroutine does not forcibly terminate the underlying CTranslate2
-        # C++ native execution thread. Safety is preserved because the worker function
-        # is strictly read-only, produces no disk side-effects, and does not mutate job state.
+        # Serializes execution on CPU hardware to prevent resource exhaustion and race conditions (ADR 0008).
+        # Cancellation safety:
+        # If caller is cancelled or times out, we retain the inference lock and await
+        # native thread completion so the active audio file is not deleted out from
+        # under the worker and no second inference can start concurrently.
         async with self._inference_lock:
+            loop = asyncio.get_running_loop()
+            fut = loop.run_in_executor(
+                None,
+                self._run_transcription_sync,
+                model,
+                str(safe_path),
+                language,
+            )
+            self._active_worker = fut
             try:
-                transcript = await asyncio.to_thread(
-                    self._run_transcription_sync,
-                    model,
-                    str(safe_path),
-                    language,
-                )
+                try:
+                    transcript = await asyncio.shield(fut)
+                except asyncio.CancelledError:
+                    logger.info(
+                        "Caller cancelled ASR transcription; awaiting native worker completion before releasing resources"
+                    )
+                    while not fut.done():
+                        try:
+                            await asyncio.shield(fut)
+                        except asyncio.CancelledError:
+                            pass
+                        except Exception:
+                            break
+                    if fut.done() and not fut.cancelled():
+                        _ = fut.exception()
+                    raise
+            except asyncio.CancelledError:
+                raise
             except Exception as err:
                 logger.warning(
                     "Local ASR transcription failed: model=%s reason=%s",
@@ -217,6 +271,8 @@ class FasterWhisperLocalProvider:
                     type(err).__name__,
                 )
                 raise RuntimeError(f"ASR transcription failed: {type(err).__name__}") from err
+            finally:
+                self._active_worker = None
 
         logger.info(
             "Local ASR transcription completed: model=%s duration=%.1fs output_chars=%d",

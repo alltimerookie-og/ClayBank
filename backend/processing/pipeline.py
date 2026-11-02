@@ -80,6 +80,19 @@ class PipelineEngine:
 
         try:
             return await self._execute_pipeline(save_id, from_stage)
+        except asyncio.CancelledError:
+            logger.warning(
+                "Pipeline execution cancelled for save %s; resetting job state to queued", save_id
+            )
+            now = now_iso_z()
+            try:
+                await self.store.execute(
+                    "UPDATE jobs SET state='queued', error=NULL, updated_at=? WHERE save_id=?",
+                    (now, save_id),
+                )
+            except Exception as db_err:
+                logger.debug("Could not reset job %s to queued on cancellation: %s", save_id, db_err)
+            raise
         finally:
             async with self._lock:
                 self._active_jobs.discard(save_id)
@@ -239,7 +252,22 @@ class PipelineEngine:
     async def _run_transcription(self, save_id: str, url: str) -> str:
         """Fetch transient audio into isolated media directory and transcribe."""
         async with IsolatedJobMedia(save_id, base_dir=self.media_base_dir) as job_dir:
-            audio_path = await asyncio.to_thread(self._fetch_audio_sync, url, job_dir)
+            loop = asyncio.get_running_loop()
+            fetch_fut = loop.run_in_executor(None, self._fetch_audio_sync, url, job_dir)
+            try:
+                audio_path = await asyncio.shield(fetch_fut)
+            except asyncio.CancelledError:
+                while not fetch_fut.done():
+                    try:
+                        await asyncio.shield(fetch_fut)
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception:
+                        break
+                if fetch_fut.done() and not fetch_fut.cancelled():
+                    _ = fetch_fut.exception()
+                raise
+
             return await self.asr_provider.transcribe(audio_path)
 
     def _fetch_audio_sync(self, url: str, job_dir: Path) -> Path:

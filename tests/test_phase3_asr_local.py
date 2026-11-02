@@ -430,3 +430,219 @@ async def test_temporary_media_cleanup_on_failure(tmp_path: Path) -> None:
 
     assert job_dir_path is not None
     assert not job_dir_path.exists()  # Completely cleaned up
+
+
+# --- Remediation Tests: CB-P3-001 & CB-P3-002 ---
+
+@pytest.mark.anyio
+async def test_cancellation_preserves_lock_and_prevents_premature_media_deletion(tmp_path: Path) -> None:
+    """Verify cancellation retains inference lock and prevents media deletion while worker runs (CB-P3-001)."""
+    import time
+    media_root = tmp_path / "claybank"
+    worker_finished = False
+    file_existed_during_worker = False
+
+    class SlowNativeModel:
+        def transcribe(self, audio_path: str, **kwargs: Any) -> tuple[list[MockSegment], Any]:
+            nonlocal worker_finished, file_existed_during_worker
+            # Worker takes 0.3s and reads from audio_path
+            time.sleep(0.3)
+            file_existed_during_worker = Path(audio_path).exists()
+            worker_finished = True
+            return [MockSegment("Done")], None
+
+    provider = FasterWhisperLocalProvider(allowed_media_dir=media_root, model=SlowNativeModel())
+
+    job_dir_ref: Path | None = None
+    async with IsolatedJobMedia("save_cb1_cancel", base_dir=media_root) as job_dir:
+        job_dir_ref = job_dir
+        audio_file = job_dir / "audio.wav"
+        create_test_wav(audio_file)
+
+        task = asyncio.create_task(provider.transcribe(audio_file))
+        await asyncio.sleep(0.05)
+
+        # Worker is running; lock should be held
+        assert provider._inference_lock.locked()
+
+        # Cancel the awaiting task
+        task.cancel()
+
+        # While task is awaiting completion of native thread, lock must still be held
+        await asyncio.sleep(0.05)
+        assert provider._inference_lock.locked()
+        assert not worker_finished
+
+        # Now await task cancellation
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # When task finally raises CancelledError, the native thread MUST be finished
+        assert worker_finished
+        assert file_existed_during_worker
+        assert not provider._inference_lock.locked()
+
+    # IsolatedJobMedia cleanup must have succeeded cleanly without WinError
+    assert job_dir_ref is not None
+    assert not job_dir_ref.exists()
+
+
+@pytest.mark.anyio
+async def test_repeated_cancellation_preserves_lock_and_cleanup(tmp_path: Path) -> None:
+    """Verify repeated task cancellations do not interrupt worker wait or corrupt cleanup (CB-P3-001)."""
+    import time
+    media_root = tmp_path / "claybank"
+    worker_finished = False
+
+    class SlowModel:
+        def transcribe(self, audio_path: str, **kwargs: Any) -> tuple[list[MockSegment], Any]:
+            nonlocal worker_finished
+            time.sleep(0.25)
+            worker_finished = True
+            return [MockSegment("Done")], None
+
+    provider = FasterWhisperLocalProvider(allowed_media_dir=media_root, model=SlowModel())
+
+    job_dir_ref: Path | None = None
+    async with IsolatedJobMedia("save_cb1_repeat", base_dir=media_root) as job_dir:
+        job_dir_ref = job_dir
+        audio_file = job_dir / "audio.wav"
+        create_test_wav(audio_file)
+
+        task = asyncio.create_task(provider.transcribe(audio_file))
+        await asyncio.sleep(0.05)
+
+        # Send multiple cancellations
+        task.cancel()
+        await asyncio.sleep(0.02)
+        task.cancel()
+        await asyncio.sleep(0.02)
+        task.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        assert worker_finished
+        assert not provider._inference_lock.locked()
+
+    assert job_dir_ref is not None
+    assert not job_dir_ref.exists()
+
+
+@pytest.mark.anyio
+async def test_second_inference_blocked_while_first_worker_active_after_cancellation(tmp_path: Path) -> None:
+    """Verify second inference cannot begin until first cancelled worker terminates (CB-P3-001)."""
+    import time
+    media_root = tmp_path / "claybank"
+    execution_order: list[str] = []
+
+    class TrackedModel:
+        def transcribe(self, audio_path: str, **kwargs: Any) -> tuple[list[MockSegment], Any]:
+            execution_order.append(f"start_{Path(audio_path).name}")
+            time.sleep(0.25)
+            execution_order.append(f"end_{Path(audio_path).name}")
+            return [MockSegment(Path(audio_path).name)], None
+
+    provider = FasterWhisperLocalProvider(allowed_media_dir=media_root, model=TrackedModel())
+
+    async with IsolatedJobMedia("save_cb1_block", base_dir=media_root) as job_dir:
+        audio1 = job_dir / "first.wav"
+        audio2 = job_dir / "second.wav"
+        create_test_wav(audio1)
+        create_test_wav(audio2)
+
+        task1 = asyncio.create_task(provider.transcribe(audio1))
+        await asyncio.sleep(0.05)
+
+        task2 = asyncio.create_task(provider.transcribe(audio2))
+        await asyncio.sleep(0.02)
+
+        # Cancel task1 while running
+        task1.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await task1
+
+        res2 = await task2
+        assert res2 == "second.wav"
+
+        # Execution must be strictly serialized: first must finish before second starts
+        assert execution_order == [
+            "start_first.wav",
+            "end_first.wav",
+            "start_second.wav",
+            "end_second.wav",
+        ]
+
+
+@pytest.mark.anyio
+async def test_concurrent_model_initialization_race_five_requests(tmp_path: Path) -> None:
+    """Verify 5 concurrent requests instantiate model exactly once (CB-P3-002)."""
+    import time
+    media_root = tmp_path / "claybank"
+    loader_calls = 0
+
+    class SharedModel:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            nonlocal loader_calls
+            loader_calls += 1
+            time.sleep(0.1)  # Simulate model load time
+
+        def transcribe(self, audio_path: str, **kwargs: Any) -> tuple[list[MockSegment], Any]:
+            return [MockSegment("Shared Transcription")], None
+
+    provider = FasterWhisperLocalProvider(allowed_media_dir=media_root)
+
+    # Patch WhisperModel constructor with our tracked SharedModel
+    with patch("faster_whisper.WhisperModel", side_effect=SharedModel):
+        async with IsolatedJobMedia("save_cb2_race", base_dir=media_root) as job_dir:
+            files = [job_dir / f"audio_{i}.wav" for i in range(5)]
+            for f in files:
+                create_test_wav(f)
+
+            # Fire 5 concurrent requests simultaneously
+            results = await asyncio.gather(*(provider.transcribe(f) for f in files))
+
+            assert len(results) == 5
+            assert all(r == "Shared Transcription" for r in results)
+            # Crucial assertion: loader must have executed EXACTLY once
+            assert loader_calls == 1
+            assert provider._model is not None
+
+
+@pytest.mark.anyio
+async def test_failed_model_initialization_releases_lock_and_allows_retry(tmp_path: Path) -> None:
+    """Verify failed model initialization propagates and does not leave provider permanently locked (CB-P3-002)."""
+    media_root = tmp_path / "claybank"
+    attempts = 0
+
+    class FlakyModel:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise RuntimeError("Disk read error on weights")
+
+        def transcribe(self, audio_path: str, **kwargs: Any) -> tuple[list[MockSegment], Any]:
+            return [MockSegment("Recovered")], None
+
+    provider = FasterWhisperLocalProvider(allowed_media_dir=media_root)
+
+    with patch("faster_whisper.WhisperModel", side_effect=FlakyModel):
+        async with IsolatedJobMedia("save_cb2_flaky", base_dir=media_root) as job_dir:
+            audio_file = job_dir / "audio.wav"
+            create_test_wav(audio_file)
+
+            # Attempt 1: fails
+            with pytest.raises(RuntimeError, match="Failed to initialize faster-whisper model"):
+                await provider.transcribe(audio_file)
+
+            assert provider._model is None
+            assert not provider._init_lock.locked()
+            assert not provider._inference_lock.locked()
+
+            # Attempt 2: succeeds
+            res = await provider.transcribe(audio_file)
+            assert res == "Recovered"
+            assert provider._model is not None
+            assert attempts == 2

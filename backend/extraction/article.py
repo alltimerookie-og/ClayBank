@@ -15,6 +15,7 @@ import socket
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+import httpcore
 import httpx
 import trafilatura
 
@@ -22,123 +23,27 @@ from backend.capture.urls import canonicalize_url
 from backend.config import settings
 from backend.contracts.enums import Kind
 from backend.contracts.extraction import CapabilityFlags, ExtractionResult
+from backend.extraction.transport import (
+    CLOUD_METADATA_IPS,
+    DEFAULT_USER_AGENT,
+    FORBIDDEN_DOMAIN_SUFFIXES,
+    FORBIDDEN_HOSTNAMES,
+    HTTP_CONNECT_TIMEOUT_SECONDS,
+    HTTP_READ_TIMEOUT_SECONDS,
+    MAX_REDIRECTS,
+    create_ssrf_protected_client,
+    is_private_ip,
+    validate_url_security,
+)
 
 logger = logging.getLogger(__name__)
 
 # Security & resource bounds
 MAX_ARTICLE_BYTES = 2 * 1024 * 1024  # 2 MB response size cap
-MAX_REDIRECTS = 5
-HTTP_CONNECT_TIMEOUT_SECONDS = 5.0
-HTTP_READ_TIMEOUT_SECONDS = 15.0
-DEFAULT_USER_AGENT = "ClayBank/1.0 (+https://github.com/alltimerookie-og/ClayBank)"
-
-FORBIDDEN_HOSTNAMES = frozenset({
-    "localhost",
-    "127.0.0.1",
-    "::1",
-    "0.0.0.0",
-    "metadata.google.internal",
-    "instance-data",
-})
-
-FORBIDDEN_DOMAIN_SUFFIXES = (
-    ".localhost",
-    ".local",
-    ".internal",
-    ".lan",
-    ".test",
-    ".invalid",
-)
-
-CLOUD_METADATA_IPS = frozenset({
-    "169.254.169.254",   # AWS / GCP / Azure link-local metadata
-    "fd00:ec2::254",     # AWS IPv6 metadata
-})
 
 _DATE_PREFIX_PATTERN = re.compile(r"^(\d{4})[-/]?(\d{2})[-/]?(\d{2})")
 
 
-def is_private_ip(ip_val: Any) -> bool:
-    """Return True if IP is loopback, private, link-local, reserved, multicast, or unspecified."""
-    try:
-        ip_str = str(ip_val).strip("[]")
-        ip = ipaddress.ip_address(ip_str)
-        return (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-            or ip.is_unspecified
-        )
-    except ValueError:
-        return False
-
-
-def validate_url_security(url: str, resolve_dns: bool = True) -> tuple[bool, str]:
-    """Validate URL scheme and host against SSRF, private networks, and cloud metadata.
-
-    Args:
-        url: The target URL to validate.
-        resolve_dns: Whether to resolve hostnames via DNS to detect private IP targets.
-
-    Returns:
-        tuple[bool, str]: (is_safe, category). If unsafe, category is the bounded error reason.
-    """
-    if not url or not isinstance(url, str):
-        return False, "invalid_url"
-
-    cleaned = url.strip()
-    if not cleaned:
-        return False, "invalid_url"
-
-    try:
-        parsed = urlparse(cleaned)
-    except Exception:
-        return False, "invalid_url"
-
-    scheme = (parsed.scheme or "").lower()
-    if not scheme:
-        return False, "invalid_url"
-    if scheme not in ("http", "https"):
-        return False, "unsupported_scheme"
-
-    host = (parsed.hostname or "").lower()
-    if not host:
-        return False, "invalid_url"
-
-    # Textual host inspection
-    if host in FORBIDDEN_HOSTNAMES:
-        return False, "private_network"
-
-    for suffix in FORBIDDEN_DOMAIN_SUFFIXES:
-        if host.endswith(suffix):
-            return False, "private_network"
-
-    if host in CLOUD_METADATA_IPS:
-        return False, "private_network"
-
-    # Direct IP literal check
-    cleaned_ip = host.strip("[]")
-    if is_private_ip(cleaned_ip):
-        return False, "private_network"
-
-    # DNS resolution check for domain names (to prevent DNS rebinding to private networks)
-    if resolve_dns:
-        try:
-            addr_info = socket.getaddrinfo(host, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
-            for entry in addr_info:
-                sockaddr = entry[4]
-                ip_str = str(sockaddr[0])
-                if is_private_ip(ip_str):
-                    return False, "private_network"
-        except socket.gaierror:
-            # Domain could not be resolved
-            pass
-        except Exception:
-            return False, "invalid_url"
-
-    return True, ""
 
 
 def normalize_publication_date(raw_date: Any) -> str | None:
@@ -339,15 +244,7 @@ class ArticleExtractor:
         if self._client is not None:
             return await self._fetch_with_client(self._client, current_url, visited_urls, redirect_count, headers)
 
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(
-                connect=HTTP_CONNECT_TIMEOUT_SECONDS,
-                read=HTTP_READ_TIMEOUT_SECONDS,
-                write=5.0,
-                pool=5.0,
-            ),
-            follow_redirects=False,
-        ) as client:
+        async with create_ssrf_protected_client() as client:
             return await self._fetch_with_client(client, current_url, visited_urls, redirect_count, headers)
 
     async def _fetch_with_client(
@@ -361,77 +258,110 @@ class ArticleExtractor:
         current_url = start_url
 
         while True:
-            resp = await client.get(current_url, headers=headers)
+            # Pre-validate URL before connection
+            is_safe, sec_cat = validate_url_security(current_url, resolve_dns=self._resolve_dns)
+            if not is_safe:
+                return FetchResult(is_success=False, category=sec_cat, status_code=0)
 
-            # Handle redirects manually for strict target verification
-            if resp.status_code in (301, 302, 303, 307, 308):
-                redirect_count += 1
-                if redirect_count > MAX_REDIRECTS:
-                    return FetchResult(is_success=False, category="redirect_loop", status_code=resp.status_code)
+            try:
+                async with client.stream("GET", current_url, headers=headers) as resp:
+                    # Handle redirects manually for strict target verification
+                    if resp.status_code in (301, 302, 303, 307, 308):
+                        redirect_count += 1
+                        if redirect_count > MAX_REDIRECTS:
+                            return FetchResult(is_success=False, category="redirect_loop", status_code=resp.status_code)
 
-                location = resp.headers.get("location")
-                if not location:
-                    return FetchResult(is_success=False, category="invalid_redirect", status_code=resp.status_code)
+                        location = resp.headers.get("location")
+                        if not location:
+                            return FetchResult(is_success=False, category="invalid_redirect", status_code=resp.status_code)
 
-                next_url = urljoin(current_url, location)
-                if next_url in visited_urls:
-                    return FetchResult(is_success=False, category="redirect_loop", status_code=resp.status_code)
+                        next_url = urljoin(current_url, location)
+                        if next_url in visited_urls:
+                            return FetchResult(is_success=False, category="redirect_loop", status_code=resp.status_code)
 
-                visited_urls.add(next_url)
+                        visited_urls.add(next_url)
 
-                # Validate redirect target for SSRF/private networks
-                is_safe, sec_cat = validate_url_security(next_url, resolve_dns=self._resolve_dns)
-                if not is_safe:
-                    return FetchResult(is_success=False, category=sec_cat, status_code=resp.status_code)
+                        # Validate redirect target for SSRF/private networks
+                        is_safe_next, sec_cat_next = validate_url_security(next_url, resolve_dns=self._resolve_dns)
+                        if not is_safe_next:
+                            return FetchResult(is_success=False, category=sec_cat_next, status_code=resp.status_code)
 
-                current_url = next_url
-                continue
+                        current_url = next_url
+                        continue
 
-            # Validate HTTP status
-            if resp.status_code == 403:
-                return FetchResult(is_success=False, category="http_403", status_code=403)
-            if resp.status_code == 404:
-                return FetchResult(is_success=False, category="http_404", status_code=404)
-            if resp.status_code == 429:
-                return FetchResult(is_success=False, category="http_429", status_code=429)
-            if 500 <= resp.status_code < 600:
-                return FetchResult(is_success=False, category="http_5xx", status_code=resp.status_code)
-            if resp.status_code != 200:
-                return FetchResult(
-                    is_success=False,
-                    category=f"http_{resp.status_code}",
-                    status_code=resp.status_code,
-                )
+                    # Validate HTTP status
+                    if resp.status_code == 403:
+                        return FetchResult(is_success=False, category="http_403", status_code=403)
+                    if resp.status_code == 404:
+                        return FetchResult(is_success=False, category="http_404", status_code=404)
+                    if resp.status_code == 429:
+                        return FetchResult(is_success=False, category="http_429", status_code=429)
+                    if 500 <= resp.status_code < 600:
+                        return FetchResult(is_success=False, category="http_5xx", status_code=resp.status_code)
+                    if resp.status_code != 200:
+                        return FetchResult(
+                            is_success=False,
+                            category=f"http_{resp.status_code}",
+                            status_code=resp.status_code,
+                        )
 
-            # Content-Type validation
-            content_type = (resp.headers.get("content-type") or "").lower()
-            if content_type and not any(
-                allowed in content_type for allowed in ("text/", "application/xhtml+xml", "application/xml")
-            ):
-                return FetchResult(is_success=False, category="invalid_content_type", status_code=200)
+                    # Content-Type validation
+                    content_type = (resp.headers.get("content-type") or "").lower()
+                    if content_type and not any(
+                        allowed in content_type for allowed in ("text/", "application/xhtml+xml", "application/xml")
+                    ):
+                        return FetchResult(is_success=False, category="invalid_content_type", status_code=200)
 
-            # Content-Length check
-            cl_header = resp.headers.get("content-length")
-            if cl_header:
-                try:
-                    if int(cl_header) > MAX_ARTICLE_BYTES:
+                    # Advisory Content-Length header check
+                    cl_header = resp.headers.get("content-length")
+                    if cl_header:
+                        try:
+                            if int(cl_header) > MAX_ARTICLE_BYTES:
+                                return FetchResult(is_success=False, category="oversized", status_code=200)
+                        except ValueError:
+                            pass
+
+                    # Bounded streaming read (enforcing byte limit during streaming)
+                    body_chunks: list[bytes] = []
+                    total_bytes = 0
+                    oversized = False
+
+                    async for chunk in resp.aiter_bytes(chunk_size=8192):
+                        total_bytes += len(chunk)
+                        if total_bytes > MAX_ARTICLE_BYTES:
+                            oversized = True
+                            break
+                        body_chunks.append(chunk)
+
+                    if oversized:
                         return FetchResult(is_success=False, category="oversized", status_code=200)
-                except ValueError:
-                    pass
 
-            # Body size check
-            body_bytes = resp.content
-            if len(body_bytes) > MAX_ARTICLE_BYTES:
-                return FetchResult(is_success=False, category="oversized", status_code=200)
+                    raw_bytes = b"".join(body_chunks)
+                    encoding = resp.encoding or "utf-8"
+                    try:
+                        html_text = raw_bytes.decode(encoding, errors="replace")
+                    except Exception:
+                        html_text = raw_bytes.decode("utf-8", errors="replace")
 
-            # Decode content without persisting to disk
-            html_text = resp.text
-            return FetchResult(
-                is_success=True,
-                status_code=200,
-                content=html_text,
-                final_url=current_url,
-            )
+                    return FetchResult(
+                        is_success=True,
+                        status_code=200,
+                        content=html_text,
+                        final_url=current_url,
+                    )
+
+            except (httpcore.ConnectError, httpx.ConnectError) as conn_err:
+                err_msg = str(conn_err)
+                if any(kw in err_msg for kw in ("SSRF", "private", "forbidden", "reserved")):
+                    return FetchResult(is_success=False, category="private_network", status_code=0)
+                return FetchResult(is_success=False, category="connection_failed", status_code=0)
+            except httpx.TimeoutException:
+                return FetchResult(is_success=False, category="timeout", status_code=0)
+            except Exception as exc:
+                err_msg = str(exc)
+                if any(kw in err_msg for kw in ("SSRF", "private", "forbidden", "reserved")):
+                    return FetchResult(is_success=False, category="private_network", status_code=0)
+                return FetchResult(is_success=False, category=f"error_{type(exc).__name__}", status_code=0)
 
     def _extract_trafilatura_sync(self, html: str, url: str) -> dict[str, Any]:
         """Execute trafilatura extraction synchronously in a thread."""
