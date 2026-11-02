@@ -14,9 +14,12 @@ from app.shell.tokens import (
     FONT_SIZE_MICRO,
     MIN_TOUCH_TARGET,
     PILL_RADIUS,
+    SPACING_4,
+    SPACING_8,
     SPACING_10,
     SPACING_12,
 )
+
 
 
 class FolderChip(ft.Container):
@@ -114,5 +117,78 @@ class PlatformChip(ft.Container):
             tooltip=f"Source: {platform}",
             theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
         )
+
+
+class TagChip(ft.Container):
+    """Filled chip for flat tags, supporting filter-in-place and optional deletion."""
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        on_click: Callable[[Any], None] | None = None,
+        on_delete: Callable[[Any], None] | None = None,
+        selected: bool = False,
+        theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
+    ) -> None:
+        clean_name = name.strip()
+        formatted_name = clean_name if clean_name.startswith("#") else f"#{clean_name}"
+        self.tag_name = formatted_name
+        self.selected = selected
+        self.on_delete = on_delete
+
+        palette = get_palette(theme_mode)
+
+        if selected:
+            bg_color = palette["accent_bg"]
+            text_color = palette["accent_ink"]
+            border = ft.Border.all(width=1.0, color=palette["accent"])
+        else:
+            bg_color = palette["chip"]
+            text_color = palette["chip_ink"]
+            border = None
+
+        text_control = ft.Text(
+            value=formatted_name,
+            size=FONT_SIZE_MICRO,
+            weight=ft.FontWeight.W_600,
+            color=text_color,
+            font_family=FONT_FAMILY_UI,
+            no_wrap=True,
+        )
+
+        if on_delete is not None:
+            delete_btn = ft.IconButton(
+                icon=ft.Icons.CLOSE_ROUNDED,
+                icon_size=14.0,
+                icon_color=text_color,
+                on_click=on_delete,
+                tooltip=f"Remove {formatted_name}",
+                width=24.0,
+                height=24.0,
+                padding=ft.Padding.all(0),
+            )
+            content_control = ft.Row(
+                controls=[text_control, delete_btn],
+                spacing=SPACING_4,
+                alignment=ft.MainAxisAlignment.CENTER,
+                tight=True,
+            )
+        else:
+            content_control = text_control
+
+        super().__init__(
+            content=content_control,
+            bgcolor=bg_color,
+            border=border,
+            border_radius=ft.BorderRadius.all(PILL_RADIUS),
+            padding=ft.Padding.symmetric(horizontal=SPACING_12, vertical=SPACING_8),
+            alignment=ft.Alignment(0, 0),
+            height=MIN_TOUCH_TARGET,
+            on_click=on_click,
+            tooltip=f"Tag: {formatted_name}",
+            theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
+        )
+
 
 

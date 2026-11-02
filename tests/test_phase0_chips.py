@@ -6,7 +6,8 @@ import flet as ft
 
 from app.shell.theme import DARK_PALETTE, LIGHT_PALETTE
 from app.shell.tokens import MIN_TOUCH_TARGET, PILL_RADIUS
-from app.ui.chips import FolderChip, PlatformChip
+from app.ui.chips import FolderChip, PlatformChip, TagChip
+
 
 
 
@@ -76,4 +77,52 @@ def test_platform_chip_dark_mode() -> None:
         theme_mode=ft.ThemeMode.DARK,
     )
     assert chip.content.color == DARK_PALETTE["muted"]
+
+
+def test_tag_chip_formatting_and_styling() -> None:
+    """Verify TagChip auto-formats # prefix and applies filled chip styling."""
+    chip = TagChip(name="recipe")
+    assert chip.tag_name == "#recipe"
+    assert chip.bgcolor == LIGHT_PALETTE["chip"]
+    assert chip.border is None
+    assert chip.border_radius.top_left == PILL_RADIUS
+    assert chip.height == MIN_TOUCH_TARGET
+    assert isinstance(chip.content, ft.Text)
+    assert chip.content.value == "#recipe"
+    assert chip.content.color == LIGHT_PALETTE["chip_ink"]
+
+
+def test_tag_chip_selection_state() -> None:
+    """Verify TagChip selection styling adheres to accent token."""
+    chip = TagChip(name="#pasta", selected=True)
+    assert chip.bgcolor == LIGHT_PALETTE["accent_bg"]
+    assert chip.border.top.color == LIGHT_PALETTE["accent"]
+    assert chip.content.color == LIGHT_PALETTE["accent_ink"]
+
+
+def test_tag_chip_delete_callback() -> None:
+    """Verify TagChip deletion affordance triggers on_delete callback."""
+    deleted = False
+
+    def handle_delete(_e: ft.ControlEvent) -> None:
+        nonlocal deleted
+        deleted = True
+
+    chip = TagChip(name="dinner", on_delete=handle_delete)
+    assert isinstance(chip.content, ft.Row)
+    delete_btn = chip.content.controls[1]
+    assert isinstance(delete_btn, ft.IconButton)
+    delete_btn.on_click(None)
+    assert deleted is True
+
+
+def test_tag_chip_dark_mode() -> None:
+    """Verify TagChip adapts to dark mode chip tokens."""
+    chip = TagChip(
+        name="study",
+        theme_mode=ft.ThemeMode.DARK,
+    )
+    assert chip.bgcolor == DARK_PALETTE["chip"]
+    assert chip.content.color == DARK_PALETTE["chip_ink"]
+
 
