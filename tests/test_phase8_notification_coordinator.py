@@ -162,19 +162,19 @@ class TestNotificationCoordinator:
             on_dismiss_notification=lambda nid: dismissed.append(nid) or True,
         )
         coord.post_quick_save_notification()
-        assert coord.is_notification_active is True
+        assert coord.is_notification_active
         assert len(posted) == 1
 
         # Toggle off in settings
         coord.set_quick_save_preference(False)
-        assert coord.quick_save_preference is False
-        assert coord.is_notification_active is False
+        assert not coord.quick_save_preference
+        assert not coord.is_notification_active
         assert dismissed == [NOTIFICATION_ID_QUICK_SAVE]
 
         # Toggle back on
         coord.set_quick_save_preference(True)
-        assert coord.quick_save_preference is True
-        assert coord.is_notification_active is True
+        assert coord.quick_save_preference
+        assert coord.is_notification_active
         assert len(posted) == 2
 
     def test_settings_toggle_on_after_denial_does_not_silently_reprompt(self) -> None:

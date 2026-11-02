@@ -205,8 +205,8 @@ class NotificationCoordinator:
         if self.on_post_notification is not None:
             try:
                 ok = self.on_post_notification(payload)
-                self._is_notification_active = bool(ok)
-                return bool(ok)
+                self._is_notification_active = ok
+                return ok
             except Exception as err:
                 self._handle_error(f"Failed to post quick-save notification: {err}")
                 self._is_notification_active = False
@@ -221,7 +221,7 @@ class NotificationCoordinator:
 
         if self.on_dismiss_notification is not None:
             try:
-                return bool(self.on_dismiss_notification(NOTIFICATION_ID_QUICK_SAVE))
+                return self.on_dismiss_notification(NOTIFICATION_ID_QUICK_SAVE)
             except Exception as err:
                 self._handle_error(f"Failed to dismiss notification: {err}")
                 return False
@@ -255,7 +255,7 @@ class NotificationCoordinator:
 
         if self.on_post_notification is not None:
             try:
-                return bool(self.on_post_notification(payload))
+                return self.on_post_notification(payload)
             except Exception as err:
                 self._handle_error(f"Failed to post progress notification: {err}")
                 return False
@@ -268,7 +268,7 @@ class NotificationCoordinator:
 
         if self.on_dismiss_notification is not None:
             try:
-                return bool(self.on_dismiss_notification(NOTIFICATION_ID_PROGRESS))
+                return self.on_dismiss_notification(NOTIFICATION_ID_PROGRESS)
             except Exception as err:
                 self._handle_error(f"Failed to dismiss progress notification: {err}")
                 return False

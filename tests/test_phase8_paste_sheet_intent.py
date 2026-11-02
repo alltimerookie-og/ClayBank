@@ -32,7 +32,7 @@ class TestPasteSheetIntent:
         )
 
         assert sheet.url_field.value == "https://shared.example.com/article/42"
-        assert clipboard_called is False
+        assert not clipboard_called
         assert sheet.clipboard_banner.visible is True
         assert "share" in sheet.clipboard_banner_text.value.lower()
 
@@ -117,5 +117,5 @@ class TestPasteSheetIntent:
         )
 
         sheet.submit()
-        assert submitted is False
+        assert not submitted
         assert sheet.url_field.error == "Please enter a valid HTTP or HTTPS URL"

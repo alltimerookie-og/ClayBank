@@ -38,9 +38,9 @@ class TestPhase8Integration:
             on_request_notification_permission=mock_perm,
         )
 
-        assert perm_requested is False
+        assert not perm_requested
         assert app.notification_coordinator.permission_state == "not_requested"
-        assert app.notification_coordinator.is_notification_active is False
+        assert not app.notification_coordinator.is_notification_active
 
     def test_first_save_triggers_permission_gate(self) -> None:
         """Verify the first successful save prompts for permission and posts notification when granted."""
@@ -65,10 +65,10 @@ class TestPhase8Integration:
         app.handle_capture_success({"url": "https://first-save.example.com", "id": "save-1"})
 
         assert len(perm_calls) == 1
-        assert app.notification_coordinator.has_prompted_for_permission is True
-        assert app.notification_coordinator.has_completed_first_save is True
+        assert app.notification_coordinator.has_prompted_for_permission
+        assert app.notification_coordinator.has_completed_first_save
         assert app.notification_coordinator.permission_state == "granted"
-        assert app.notification_coordinator.is_notification_active is True
+        assert app.notification_coordinator.is_notification_active
         assert len(posted_notifications) == 1
         assert posted_notifications[0]["id"] == NOTIFICATION_ID_QUICK_SAVE
 
@@ -89,9 +89,9 @@ class TestPhase8Integration:
         app.handle_capture_success({"url": "https://save.example.com", "id": "save-1"})
 
         assert len(perm_calls) == 0
-        assert app.notification_coordinator.has_prompted_for_permission is False
-        assert app.notification_coordinator.has_completed_first_save is True
-        assert app.notification_coordinator.is_notification_active is False
+        assert not app.notification_coordinator.has_prompted_for_permission
+        assert app.notification_coordinator.has_completed_first_save
+        assert not app.notification_coordinator.is_notification_active
 
     def test_settings_toggle_reactively_controls_notification(self) -> None:
         """Verify toggling quick_save_notification switch dismisses and restores notification."""
@@ -107,38 +107,38 @@ class TestPhase8Integration:
 
         # Trigger initial save to grant and post
         app.handle_capture_success({"url": "https://example.com", "id": "save-1"})
-        assert app.notification_coordinator.is_notification_active is True
+        assert app.notification_coordinator.is_notification_active
         assert posted_notifications == [NOTIFICATION_ID_QUICK_SAVE]
 
         # Toggle OFF in settings
         app.handle_preference_change("quick_save_notification", False)
-        assert app.notification_coordinator.is_notification_active is False
+        assert not app.notification_coordinator.is_notification_active
         assert cancelled_notifications == [NOTIFICATION_ID_QUICK_SAVE]
 
         # Toggle ON in settings - restores without re-prompt
         app.handle_preference_change("quick_save_notification", True)
-        assert app.notification_coordinator.is_notification_active is True
+        assert app.notification_coordinator.is_notification_active
         assert len(posted_notifications) == 2
 
     def test_external_capture_paste_and_save_opens_paste_sheet(self) -> None:
         """Verify handle_external_capture(ACTION_PASTE_AND_SAVE) opens paste sheet with notification attribution."""
         app = ClayBankApp(has_seen_onboarding=True)
-        assert app.is_paste_sheet_open is False
+        assert not app.is_paste_sheet_open
 
         app.handle_external_capture(ACTION_PASTE_AND_SAVE)
 
-        assert app.is_paste_sheet_open is True
+        assert app.is_paste_sheet_open
         assert app.paste_sheet is not None
         assert app.paste_sheet.source_app == "notification"
 
     def test_external_capture_share_target_prefills_intent_url(self) -> None:
         """Verify handle_external_capture(ACTION_SHARE_TARGET) prefills shared URL."""
         app = ClayBankApp(has_seen_onboarding=True)
-        assert app.is_paste_sheet_open is False
+        assert not app.is_paste_sheet_open
 
         app.handle_external_capture(ACTION_SHARE_TARGET, url="https://twitter.com/post/98765")
 
-        assert app.is_paste_sheet_open is True
+        assert app.is_paste_sheet_open
         assert app.paste_sheet is not None
         assert app.paste_sheet.url_field.value == "https://twitter.com/post/98765"
         assert app.paste_sheet.source_app == "share_target"
@@ -172,7 +172,8 @@ class TestPhase8Integration:
 
         assert app.viewport.content == app.app_shell
         assert app.current_note_view is None
-        assert app.is_paste_sheet_open is True
+        assert app.is_paste_sheet_open
+        assert app.paste_sheet is not None
         assert app.paste_sheet.url_field.value == "https://new-item.com"
 
     def test_strict_four_tab_invariant_maintained(self) -> None:
