@@ -126,15 +126,15 @@ def test_note_editor_initialization_and_mode_toggle() -> None:
 
     assert len(page.dialogs) == 1
     assert modal.title_text.value == "Test Title"
-    assert modal.is_editing is False
-    assert modal.save_btn.visible is False
-    assert modal.toolbar_chips.visible is False
+    assert not modal.is_editing
+    assert not modal.save_btn.visible
+    assert not modal.toolbar_chips.visible
 
     # Toggle to edit mode
     modal._toggle_mode()
-    assert modal.is_editing is True
-    assert modal.save_btn.visible is True
-    assert modal.toolbar_chips.visible is True
+    assert modal.is_editing
+    assert modal.save_btn.visible
+    assert modal.toolbar_chips.visible
     assert modal.edit_toggle_btn.text == "Preview"
 
     # Insert markdown snippet
@@ -144,8 +144,8 @@ def test_note_editor_initialization_and_mode_toggle() -> None:
 
     # Toggle back to preview mode
     modal._toggle_mode()
-    assert modal.is_editing is False
-    assert modal.save_btn.visible is False
+    assert not modal.is_editing
+    assert not modal.save_btn.visible
 
 
 @pytest.mark.anyio
@@ -223,7 +223,7 @@ async def test_note_editor_save_note_success() -> None:
     assert len(saved_payloads) == 1
     assert saved_payloads[0]["markdown"] == "# Updated Note Content"
     assert saved_payloads[0]["updated_at"] == "2026-03-02T10:00:00Z"
-    assert modal.is_editing is False
+    assert not modal.is_editing
     assert modal.server_updated_at == "2026-03-02T14:00:00Z"
     assert modal.banner_error is None
     assert len(page.overlay) == 1  # SnackBar added
@@ -252,6 +252,6 @@ async def test_note_editor_save_note_optimistic_conflict_409() -> None:
 
     await modal._save_note()
 
-    assert modal.is_editing is True  # Stays in edit mode so edits are not lost
+    assert modal.is_editing  # Stays in edit mode so edits are not lost
     assert modal.banner_warn is not None
     assert "Conflict (409)" in modal.banner_warn

@@ -233,6 +233,7 @@ class PipelineEngine:
             # Only explicit 'from=analyzing' regenerates the body text.
             if has_existing_body and start_stage in ("extracting", "transcribing"):
                 # Reprocess re-run: update stable frontmatter facts only, keep user body untouched
+                assert existing_note is not None
                 facts = {
                     "source": platform,
                     "channel": save.get("channel") or (extraction_res.channel if extraction_res else None),
@@ -246,15 +247,20 @@ class PipelineEngine:
                 _, body_only = parse_frontmatter(existing_note["markdown"])
                 updated_md = build_frontmatter_yaml(facts) + body_only
 
+                rerun_overview = existing_note.get("overview")
+                rerun_kp = json.loads(existing_note["key_points_json"]) if existing_note.get("key_points_json") else None
+                rerun_links = json.loads(existing_note["links_json"]) if existing_note.get("links_json") else None
+                rerun_transcript = existing_note.get("transcript")
+
                 def _tx_rerun(conn: Any) -> None:
                     execute_note_persistence_transaction(
                         conn=conn,
                         save_id=save_id,
                         markdown=updated_md,
-                        overview=existing_note.get("overview"),
-                        key_points=json.loads(existing_note["key_points_json"]) if existing_note.get("key_points_json") else None,
-                        links=json.loads(existing_note["links_json"]) if existing_note.get("links_json") else None,
-                        transcript=existing_note.get("transcript"),
+                        overview=rerun_overview,
+                        key_points=rerun_kp,
+                        links=rerun_links,
+                        transcript=rerun_transcript,
                         now=now,
                     )
                 await self.store.run_tx(_tx_rerun)

@@ -59,7 +59,7 @@ async def list_saves(request: Request, cursor: str | None = None,
                      folder_id: str | None = None, inbox: bool | None = None,
                      needs_review: bool | None = None, kind: str | None = None,
                      limit: int = 20):
-    limit = max(1, min(int(limit or 20), 100))
+    limit = max(1, min(limit if limit is not None else 20, 100))
     where = []
     params: list = []
     if inbox:

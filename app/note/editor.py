@@ -23,6 +23,21 @@ def strip_frontmatter(markdown: str) -> str:
     return _FRONTMATTER_STRIP.sub("", markdown).strip()
 
 
+class ToggleButton(ft.TextButton):
+    """TextButton with text property for Flet 1.0 content compatibility and typing."""
+
+    @property
+    def text(self) -> str:
+        if isinstance(self.content, str):
+            return self.content
+        return str(getattr(self, "_text", ""))
+
+    @text.setter
+    def text(self, val: str) -> None:
+        self.content = val
+        self._text = val
+
+
 class NoteEditorModal:
     """Modal dialog combining Properties Grid, Markdown Preview, and Monospace Editor."""
 
@@ -34,9 +49,9 @@ class NoteEditorModal:
 
         self.note: dict[str, Any] = {}
         self.job: dict[str, Any] = {}
-        self.is_editing = False
-        self.is_loading = True
-        self.is_saving = False
+        self.is_editing: bool = False
+        self.is_loading: bool = True
+        self.is_saving: bool = False
         self.banner_error: str | None = None
         self.banner_warn: str | None = None
         self.server_updated_at: str = ""
@@ -67,7 +82,7 @@ class NoteEditorModal:
             value="",
             selectable=True,
             extension_set=ft.MarkdownExtensionSet.GITHUB_FLAVORED,
-            code_theme="atom-one-light",
+            code_theme=ft.MarkdownCodeTheme.ATOM_ONE_LIGHT,
             on_tap_link=self._on_tap_link,
             shrink_wrap=True,
         )
@@ -76,7 +91,7 @@ class NoteEditorModal:
         self.body_scroll_container = ft.Column(spacing=10, expand=True, scroll=ft.ScrollMode.AUTO)
 
         # Actions & Buttons
-        self.edit_toggle_btn = ft.TextButton("Edit", icon=ft.Icons.EDIT_OUTLINED, on_click=self._toggle_mode)
+        self.edit_toggle_btn: ToggleButton = ToggleButton("Edit", icon=ft.Icons.EDIT_OUTLINED, on_click=self._toggle_mode)
         self.save_btn = ft.FilledButton("Save", on_click=self._save_note, style=ft.ButtonStyle(bgcolor=T.ACCENT), visible=False)
         self.close_btn = ft.TextButton("Close", on_click=self.close)
         self.open_url_btn = ft.IconButton(
@@ -223,7 +238,7 @@ class NoteEditorModal:
         # Tags chips
         tags = fm.get("tags") or []
         if tags:
-            tag_chips = [
+            tag_chips: list[ft.Control] = [
                 ft.Container(
                     content=ft.Text(f"#{t}", size=11, color=T.CHIP_INK),
                     bgcolor=T.CHIP,
