@@ -6,7 +6,8 @@ import flet as ft
 
 from app.shell.theme import DARK_PALETTE, LIGHT_PALETTE
 from app.shell.tokens import MIN_TOUCH_TARGET, PILL_RADIUS
-from app.ui.chips import FolderChip, PlatformChip, TagChip
+from app.ui.chips import CitationChip, FolderChip, PlatformChip, TagChip
+
 
 
 
@@ -124,5 +125,51 @@ def test_tag_chip_dark_mode() -> None:
     )
     assert chip.bgcolor == DARK_PALETTE["chip"]
     assert chip.content.color == DARK_PALETTE["chip_ink"]
+
+
+def test_citation_chip_jump_target() -> None:
+    """Verify CitationChip with is_jump=True uses line border and ink text."""
+    chip = CitationChip(label="▶ 0:42", target_offset="0:42", is_jump=True)
+    assert chip.is_jump is True
+    assert chip.target_offset == "0:42"
+    assert chip.bgcolor == "transparent"
+    assert chip.border.top.color == LIGHT_PALETTE["line"]
+    assert chip.content.value == "▶ 0:42"
+    assert chip.content.color == LIGHT_PALETTE["ink"]
+    assert chip.height == MIN_TOUCH_TARGET
+
+
+def test_citation_chip_confidence_suffix() -> None:
+    """Verify CitationChip appends percentage confidence suffix."""
+    chip = CitationChip(label="Cooking / Pasta", confidence=0.94)
+    assert chip.content.value == "Cooking / Pasta · 94%"
+    assert chip.bgcolor == LIGHT_PALETTE["chip"]
+    assert chip.content.color == LIGHT_PALETTE["chip_ink"]
+
+
+def test_citation_chip_click_callback() -> None:
+    """Verify CitationChip executes on_click callback with jump target."""
+    clicked_offset = None
+
+    def handle_jump(_e: ft.ControlEvent) -> None:
+        nonlocal clicked_offset
+        clicked_offset = chip.target_offset
+
+    chip = CitationChip(label="Overview", target_offset="0:15", on_click=handle_jump)
+    chip.on_click(None)
+    assert clicked_offset == "0:15"
+
+
+def test_citation_chip_dark_mode() -> None:
+    """Verify CitationChip dark theme palette adaptation."""
+    chip = CitationChip(
+        label="▶ 1:04",
+        target_offset="1:04",
+        is_jump=True,
+        theme_mode=ft.ThemeMode.DARK,
+    )
+    assert chip.border.top.color == DARK_PALETTE["line"]
+    assert chip.content.color == DARK_PALETTE["ink"]
+
 
 

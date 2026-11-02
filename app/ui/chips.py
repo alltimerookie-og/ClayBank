@@ -191,4 +191,64 @@ class TagChip(ft.Container):
         )
 
 
+class CitationChip(ft.Container):
+    """Citation or jump-target chip opening a note source at a specific offset."""
+
+    def __init__(
+        self,
+        label: str,
+        *,
+        target_offset: str | None = None,
+        save_id: str | None = None,
+        confidence: float | None = None,
+        is_jump: bool = False,
+        on_click: Callable[[Any], None] | None = None,
+        theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
+    ) -> None:
+        self.label = label
+        self.target_offset = target_offset
+        self.save_id = save_id
+        self.confidence = confidence
+        self.is_jump = is_jump
+
+        palette = get_palette(theme_mode)
+
+        display_text = label
+        if confidence is not None:
+            pct = int(confidence * 100) if confidence <= 1.0 else int(confidence)
+            display_text = f"{display_text} · {pct}%"
+
+        if is_jump:
+            bg_color = "transparent"
+            border = ft.Border.all(width=1.0, color=palette["line"])
+            text_color = palette["ink"]
+        else:
+            bg_color = palette["chip"]
+            border = None
+            text_color = palette["chip_ink"]
+
+        text_control = ft.Text(
+            value=display_text,
+            size=FONT_SIZE_MICRO,
+            weight=ft.FontWeight.W_600,
+            color=text_color,
+            font_family=FONT_FAMILY_UI,
+            no_wrap=True,
+        )
+
+        super().__init__(
+            content=text_control,
+            bgcolor=bg_color,
+            border=border,
+            border_radius=ft.BorderRadius.all(PILL_RADIUS),
+            padding=ft.Padding.symmetric(horizontal=SPACING_12, vertical=SPACING_8),
+            alignment=ft.Alignment(0, 0),
+            height=MIN_TOUCH_TARGET,
+            on_click=on_click,
+            tooltip=f"Citation: {display_text}" + (f" ({target_offset})" if target_offset else ""),
+            theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
+        )
+
+
+
 
