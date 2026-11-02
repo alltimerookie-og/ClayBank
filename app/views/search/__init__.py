@@ -1,5 +1,10 @@
 """Search and Ask views package for ClayBank (Phase 6)."""
 
+from app.views.search.ask_message import (
+    AskAnswerCard,
+    AskTypingDots,
+    AskUserBubble,
+)
 from app.views.search.search_result_card import (
     MATCH_REASON_LABELS,
     SearchResultCard,
@@ -26,4 +31,7 @@ __all__ = [
     "FACET_INSTAGRAM",
     "FACET_THIS_MONTH",
     "FACETS",
+    "AskUserBubble",
+    "AskTypingDots",
+    "AskAnswerCard",
 ]
