@@ -68,7 +68,9 @@ def test_folders_grid_view_empty_state():
     assert isinstance(col, ft.Column)
     texts = [c.value for c in col.controls if isinstance(c, ft.Text)]
     assert "No folders yet" in texts
-    assert any("Folders are for projects" in (t or "") for t in texts)
+    assert any("Folders appear when you have a project to put them in" in (t or "") for t in texts)
+    assert any("Folders are for projects, not topics" in (t or "") for t in texts)
+    assert any("there is no 'Unsorted' folder" in (t or "") for t in texts)
 
 
 def test_folders_grid_view_2_column_layout():

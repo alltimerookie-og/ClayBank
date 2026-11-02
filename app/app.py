@@ -642,6 +642,8 @@ class ClayBankApp(ft.Container):
         """Revert creation of folder."""
         self._folders_collection = [f for f in self._folders_collection if f.get("id") != folder_id]
         self.refresh_folders()
+        if self.on_delete_folder:
+            self.on_delete_folder(folder_id)
 
     def undo_folder_rename(self, folder_id: str, old_name: str) -> None:
         """Revert folder rename."""
@@ -657,6 +659,8 @@ class ClayBankApp(ft.Container):
         self.refresh_folders()
         if self.current_folder_detail_view is not None:
             self.open_folder_detail_view(folder_id)
+        if self.on_rename_folder:
+            self.on_rename_folder(folder_id, old_name)
 
     def undo_folder_deletion(self, folder_id: str) -> None:
         """Revert folder deletion and re-file member saves."""

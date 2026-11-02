@@ -262,7 +262,7 @@ class FoldersGridView(ft.Container):
                 ),
             )
             empty_desc = ft.Text(
-                "Folders are for projects, not topics — they appear when you have a project to put them in.",
+                "Folders appear when you have a project to put them in. Folders are for projects, not topics — there is no 'Unsorted' folder.",
                 style=create_text_style(
                     size=FONT_SIZE_MUTED,
                     color=palette["muted"],

@@ -190,9 +190,11 @@ def test_folder_detail_view_open_note():
 
 def test_folder_creation_lifecycle_and_undo():
     """Verify creating a folder updates grid, shows snackbar, and supports undo."""
+    deleted_calls: list[str] = []
     app = ClayBankApp(
         has_seen_onboarding=True,
         folders=copy.deepcopy(SAMPLE_FOLDERS),
+        on_delete_folder=lambda f_id: deleted_calls.append(f_id),
     )
     initial_count = len(app._folders_collection)
 
@@ -219,14 +221,17 @@ def test_folder_creation_lifecycle_and_undo():
     app.last_snackbar.trigger_undo()
     assert len(app._folders_collection) == initial_count
     assert not any(f["name"] == "Gardening" for f in app._folders_collection)
+    assert deleted_calls == [new_folder["id"]]
 
 
 def test_folder_rename_lifecycle_and_undo():
     """Verify renaming a folder updates folder name and member saves with undo support."""
+    renamed_calls: list[tuple[str, str]] = []
     app = ClayBankApp(
         has_seen_onboarding=True,
         saves=copy.deepcopy(SAMPLE_SAVES),
         folders=copy.deepcopy(SAMPLE_FOLDERS),
+        on_rename_folder=lambda f_id, name: renamed_calls.append((f_id, name)),
     )
 
     cooking_folder = copy.deepcopy(SAMPLE_FOLDERS[0])
@@ -253,6 +258,10 @@ def test_folder_rename_lifecycle_and_undo():
     app.last_snackbar.trigger_undo()
     assert updated_f["name"] == "Cooking"
     assert save_1["folder"] == "Cooking"
+    assert renamed_calls == [
+        (cooking_folder["id"], "Culinary Arts"),
+        (cooking_folder["id"], "Cooking"),
+    ]
 
 
 def test_folder_delete_unfiles_saves_with_undo():
