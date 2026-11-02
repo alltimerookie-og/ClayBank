@@ -8,6 +8,7 @@ and interaction callbacks.
 from __future__ import annotations
 
 import flet as ft
+from typing import Any
 import pytest
 
 from app.shell.tokens import MIN_TOUCH_TARGET
@@ -89,8 +90,9 @@ class TestProfileSyncCard:
             calls.append(1)
 
         card = ProfileSyncCard(sync_status="Synced", on_sync_click=on_sync)
-        assert card.status_chip.on_click is not None
-        card.status_chip.on_click(None)
+        click_fn: Any = card.status_chip.on_click
+        assert callable(click_fn)
+        click_fn(None)
         assert len(calls) == 1
 
         # Now test when status is Syncing...

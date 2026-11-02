@@ -137,7 +137,7 @@ class TestPhase7Integration:
             server_updated_at="2026-10-31T12:00:00Z",
         )
 
-        assert app.settings_view.conflict_container.visible is True
+        assert app.settings_view.conflict_container.visible == True
         assert app.sync_coordinator.sync_status == "Conflict"
 
         # 2. Execute Keep Both
@@ -146,7 +146,7 @@ class TestPhase7Integration:
         assert res["title"] == "Pasta Recipe (Local Edit)"
 
         # Conflict is cleared
-        assert app.settings_view.conflict_container.visible is False
+        assert app.settings_view.conflict_container.visible == False
         assert app.sync_coordinator.sync_status == "Synced"
 
         # Local edit copy is inserted in Inbox saves
@@ -158,7 +158,7 @@ class TestPhase7Integration:
         app = ClayBankApp(has_seen_onboarding=True)
         app.app_shell.set_tab(TAB_SETTINGS)
         # Verify app initialized cleanly without any platform permission calls
-        assert app.settings_view.switch_quick_save.value is True
+        assert app.settings_view.switch_quick_save.value == True
 
     def test_theme_mode_switching_preserves_settings_view(self) -> None:
         """Theme toggle updates palette without destroying SettingsView state."""

@@ -7,6 +7,7 @@ disabled states, and absence of native Android permission calls.
 from __future__ import annotations
 
 import flet as ft
+from typing import Any
 import pytest
 
 from app.shell.tokens import MIN_TOUCH_TARGET
@@ -54,23 +55,24 @@ class TestSettingSwitchCard:
 
         # Simulate toggle to False
         event = type("Event", (), {"control": type("Control", (), {"value": False})()})()
-        assert card.switch_control.on_change is not None
-        card.switch_control.on_change(event)
+        change_fn: Any = card.switch_control.on_change
+        assert callable(change_fn)
+        change_fn(event)
 
         assert dispatched == [("auto_sort", False)]
-        assert card.value is False
+        assert card.value == False
 
     def test_programmatic_value_and_disabled_setters(self) -> None:
         """Verify set_value and set_disabled methods."""
         card = SettingSwitchCard("Wi-Fi only", field_key="wifi_only_processing", value=False)
-        assert card.value is False
+        assert card.value == False
 
         card.set_value(True)
-        assert card.value is True
-        assert card.switch_control.value is True
+        assert card.value == True
+        assert card.switch_control.value == True
 
         card.set_disabled(True)
-        assert card.switch_control.disabled is True
+        assert card.switch_control.disabled == True
 
     def test_dark_mode_rendering(self) -> None:
         """Verify rendering under dark theme."""

@@ -8,6 +8,7 @@ error resilience, and theme modes.
 from __future__ import annotations
 
 import flet as ft
+from typing import Any
 import pytest
 
 from app.shell.tokens import MIN_TOUCH_TARGET
@@ -17,6 +18,12 @@ from app.views.sync.conflict_banner import (
     create_local_edit_title,
 )
 
+
+
+def _simulate_click(control: ft.Control) -> None:
+    fn: Any = getattr(control, "on_click", None)
+    assert callable(fn)
+    fn(None)
 
 class TestConflictRecoveryBanner:
     """Test suite for ConflictRecoveryBanner component."""
@@ -59,7 +66,7 @@ class TestConflictRecoveryBanner:
         )
 
         assert banner.keep_both_btn.on_click is not None
-        banner.keep_both_btn.on_click(None)
+        _simulate_click(banner.keep_both_btn)
 
         assert dispatched == [("save-123", "Original Recipe (Local Edit)", "# My local edit")]
         assert dismissed == [True]
@@ -79,27 +86,27 @@ class TestConflictRecoveryBanner:
         )
 
         # 1. Click initial Overwrite button
-        assert banner.actions_row.visible is True
-        assert banner.confirm_row.visible is False
+        assert banner.actions_row.visible == True
+        assert banner.confirm_row.visible == False
         assert banner.overwrite_btn.on_click is not None
-        banner.overwrite_btn.on_click(None)
+        _simulate_click(banner.overwrite_btn)
 
         # Confirmation prompt shown, nothing dispatched yet
-        assert banner.actions_row.visible is False
-        assert banner.confirm_row.visible is True
+        assert banner.actions_row.visible == False
+        assert banner.confirm_row.visible == True
         assert len(overwritten) == 0
 
         # 2. Click Cancel
         assert banner.confirm_cancel_btn.on_click is not None
-        banner.confirm_cancel_btn.on_click(None)
-        assert banner.actions_row.visible is True
-        assert banner.confirm_row.visible is False
+        _simulate_click(banner.confirm_cancel_btn)
+        assert banner.actions_row.visible == True
+        assert banner.confirm_row.visible == False
         assert len(overwritten) == 0
 
         # 3. Click Overwrite again and Confirm
-        banner.overwrite_btn.on_click(None)
+        _simulate_click(banner.overwrite_btn)
         assert banner.confirm_yes_btn.on_click is not None
-        banner.confirm_yes_btn.on_click(None)
+        _simulate_click(banner.confirm_yes_btn)
 
         # Dispatched
         assert overwritten == [("save-123", "# Forcing this")]
@@ -116,7 +123,7 @@ class TestConflictRecoveryBanner:
         )
 
         assert banner.discard_btn.on_click is not None
-        banner.discard_btn.on_click(None)
+        _simulate_click(banner.discard_btn)
 
         assert discarded == ["save-456"]
         assert dismissed == [True]
@@ -132,11 +139,11 @@ class TestConflictRecoveryBanner:
         )
 
         assert banner.keep_both_btn.on_click is not None
-        banner.keep_both_btn.on_click(None)
+        _simulate_click(banner.keep_both_btn)
 
-        assert banner.error_text.visible is True
+        assert banner.error_text.visible == True
         assert "Database write failed" in banner.error_text.value
-        assert banner._is_resolving is False
+        assert banner._is_resolving == False
 
     def test_dark_mode_rendering(self) -> None:
         """Verify dark mode styling."""

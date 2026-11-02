@@ -8,6 +8,7 @@ execution hints, setup/download progress states, and callback behaviors.
 from __future__ import annotations
 
 import flet as ft
+from typing import Any
 import pytest
 
 from app.views.settings.chat_model_card import (
@@ -31,9 +32,9 @@ class TestChatModelCard:
         assert card.title_text.value == "Chat model"
         assert card.copy_text.value == EXPLANATORY_COPY
         # Local picker and hint must be hidden in Cloud mode
-        assert card.local_picker_section.visible is False
+        assert card.local_picker_section.visible == False
         assert card.hint_text.visible is False
-        assert card.setup_section.visible is False
+        assert card.setup_section.visible == False
 
     def test_explanatory_copy_locked(self) -> None:
         """Verify exact locked copy is present."""
@@ -48,11 +49,11 @@ class TestChatModelCard:
     def test_switch_to_local_reveals_picker(self) -> None:
         """Switching to Local mode makes local model picker visible."""
         card = ChatModelCard(chat_model="cloud")
-        assert card.local_picker_section.visible is False
+        assert card.local_picker_section.visible == False
 
         card.set_chat_model("local")
         assert card._chat_model == "local"
-        assert card.local_picker_section.visible is True
+        assert card.local_picker_section.visible == True
 
     def test_engine_change_callback(self) -> None:
         """Clicking Local/Cloud dispatches on_model_change."""
@@ -63,8 +64,9 @@ class TestChatModelCard:
 
         card = ChatModelCard(chat_model="cloud", on_model_change=handle_change)
         # Click local button
-        assert card.local_btn.on_click is not None
-        card.local_btn.on_click(None)
+        click_fn: Any = card.local_btn.on_click
+        assert callable(click_fn)
+        click_fn(None)
 
         assert dispatched == ["local"]
         assert card._chat_model == "local"
@@ -81,8 +83,9 @@ class TestChatModelCard:
             local_model_id=MODEL_MINICPM,
             on_local_model_pick=handle_pick,
         )
-        assert card.chip_qwen.on_click is not None
-        card.chip_qwen.on_click(None)
+        click_fn: Any = card.chip_qwen.on_click
+        assert callable(click_fn)
+        click_fn(None)
 
         assert picked == [MODEL_QWEN]
         assert card._local_model_id == MODEL_QWEN
@@ -116,9 +119,10 @@ class TestChatModelCard:
             is_downloading=False,
             on_request_setup=handle_setup,
         )
-        assert card.setup_button.visible is True
-        assert card.setup_button.on_click is not None
-        card.setup_button.on_click(None)
+        assert card.setup_button.visible == True
+        click_fn: Any = card.setup_button.on_click
+        assert callable(click_fn)
+        click_fn(None)
 
         assert setup_calls == [MODEL_MINICPM]
 
@@ -129,7 +133,7 @@ class TestChatModelCard:
             is_downloading=True,
             download_progress=0.45,
         )
-        assert card.progress_bar.visible is True
+        assert card.progress_bar.visible == True
         assert card.progress_bar.value == 0.45
         assert card.setup_label.value == SETTING_UP_HINT
         assert card.hint_text.visible is False
@@ -152,19 +156,19 @@ class TestChatModelCard:
     def test_dynamic_download_state_updates(self) -> None:
         """Test set_download_state transitions."""
         card = ChatModelCard(chat_model="local", is_local_ready=False)
-        assert card.setup_button.visible is True
+        assert card.setup_button.visible == True
 
         # Transition to downloading
         card.set_download_state(is_downloading=True, progress=0.75, is_ready=False)
-        assert card.progress_bar.visible is True
+        assert card.progress_bar.visible == True
         assert card.progress_bar.value == 0.75
-        assert card.setup_button.visible is False
+        assert card.setup_button.visible == False
 
         # Transition to ready
         card.set_download_state(is_downloading=False, progress=None, is_ready=True)
-        assert card.progress_bar.visible is False
-        assert card.setup_section.visible is False
-        assert card.hint_text.visible is True
+        assert card.progress_bar.visible == False
+        assert card.setup_section.visible == False
+        assert card.hint_text.visible == True
 
     def test_dark_mode_rendering(self) -> None:
         """Verify dark mode styling."""

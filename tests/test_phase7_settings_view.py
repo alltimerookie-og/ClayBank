@@ -7,6 +7,7 @@ storage values, four system switches, privacy disclosure, and conflict banner.
 from __future__ import annotations
 
 import flet as ft
+from typing import Any
 import pytest
 
 from app.views.settings.privacy_banner import PRIVACY_BANNER_TEXT
@@ -54,10 +55,10 @@ class TestSettingsView:
             on_model_change=lambda m: model_changes.append(m),
             on_local_model_pick=lambda p: picks.append(p),
         )
-        assert view.chat_model_card.local_picker_section.visible is False
+        assert view.chat_model_card.local_picker_section.visible == False
 
         view.set_chat_model("local")
-        assert view.chat_model_card.local_picker_section.visible is True
+        assert view.chat_model_card.local_picker_section.visible == True
 
     def test_storage_card_values(self) -> None:
         """Verify storage values displayed."""
@@ -82,15 +83,16 @@ class TestSettingsView:
             on_update_preference=handle_pref,
         )
 
-        assert view.switch_auto_sort.value is True
-        assert view.switch_weekly_digest.value is True
-        assert view.switch_wifi_only.value is False
-        assert view.switch_quick_save.value is True
+        assert view.switch_auto_sort.value == True
+        assert view.switch_weekly_digest.value == True
+        assert view.switch_wifi_only.value == False
+        assert view.switch_quick_save.value == True
 
         # Toggle auto-sort
         event = type("Event", (), {"control": type("Control", (), {"value": False})()})()
-        assert view.switch_auto_sort.switch_control.on_change is not None
-        view.switch_auto_sort.switch_control.on_change(event)
+        change_fn: Any = view.switch_auto_sort.switch_control.on_change
+        assert callable(change_fn)
+        change_fn(event)
         assert ("auto_sort", False) in dispatched
 
     def test_privacy_banner_present(self) -> None:
@@ -108,12 +110,12 @@ class TestSettingsView:
         }
 
         view = SettingsView(conflict_data=conflict_payload)
-        assert view.conflict_container.visible is True
+        assert view.conflict_container.visible == True
         assert view.conflict_container.content is not None
 
         # Clear conflict
         view.clear_conflict()
-        assert view.conflict_container.visible is False
+        assert view.conflict_container.visible == False
         assert view.conflict_container.content is None
 
     def test_dark_mode_rendering(self) -> None:

@@ -126,7 +126,7 @@ class ClayBankApp(ft.Container):
         # Build Folders view for Tab 1
         self.folders_view = FoldersGridView(
             folders=self._folders_collection,
-            on_select_folder=self.open_folder_detail_view,
+            on_select_folder=self._action_select_folder,
             on_new_folder=lambda: self.open_create_folder_sheet(),
             on_folder_long_press=self.open_folder_context_menu,
             on_refresh=self.refresh_folders,
@@ -140,7 +140,7 @@ class ClayBankApp(ft.Container):
             active_jobs=active_jobs,
             on_add_link=self.open_paste_sheet,
             on_refresh=self.refresh_inbox,
-            on_select_save=self.open_note_view,
+            on_select_save=self._action_select_save,
             on_accept_suggestion=self.handle_accept_suggestion,
             on_ignore_suggestion=self.handle_ignore_suggestion,
             on_accept_cluster=self.handle_accept_cluster,
@@ -151,9 +151,9 @@ class ClayBankApp(ft.Container):
         # Build Search view for Tab 2
         self.search_view = SearchView(
             results=search_results,
-            on_select_save=self.open_note_view,
-            on_jump_target=lambda s, t: self.open_note_view(s, jump_target=t),
-            on_open_ask=lambda s=None: self.open_ask_view(scope=s or "library"),
+            on_select_save=self._action_select_save,
+            on_jump_target=self._action_jump_target,
+            on_open_ask=self._action_open_ask,
             on_search_query=self.handle_search_query,
             theme_mode=theme_mode,
         )
@@ -199,7 +199,7 @@ class ClayBankApp(ft.Container):
             on_model_change=self.handle_chat_model_change,
             on_local_model_pick=self.handle_local_model_pick,
             on_request_model_setup=self.handle_request_model_setup,
-            on_trigger_sync=self.handle_trigger_sync,
+            on_trigger_sync=self._action_trigger_sync,
             on_resolve_conflict=self.handle_keep_both_conflict,
             on_overwrite_conflict=self.handle_overwrite_conflict,
             on_discard_conflict=self.handle_discard_conflict,
@@ -252,6 +252,27 @@ class ClayBankApp(ft.Container):
             ),
             expand=True,
         )
+
+    def _action_select_folder(self, folder_data: dict[str, Any]) -> None:
+        self.open_folder_detail_view(folder_data)
+
+    def _action_select_save(self, save: dict[str, Any]) -> None:
+        self.open_note_view(save)
+
+    def _action_jump_target(self, s: dict[str, Any], t: str) -> None:
+        self.open_note_view(s, jump_target=t)
+
+    def _action_open_ask(self, s: str | None = None) -> None:
+        self.open_ask_view(scope=s or "library")
+
+    def _action_ask_folder(self, f_id: str, f_name: str) -> None:
+        self.open_ask_view(scope=f_id, folder_name=f_name)
+
+    def _action_click_citation(self, save_id: str, anchor: str | None) -> None:
+        self.open_note_view(save_id, jump_target=anchor)
+
+    def _action_trigger_sync(self) -> None:
+        self.handle_trigger_sync()
 
     def _load_default_folders(self) -> list[dict[str, Any]]:
         """Load default folders from fixture or provide canonical starter collection."""
@@ -489,8 +510,8 @@ class ClayBankApp(ft.Container):
         if isinstance(folder_data, dict):
             f_obj = dict(folder_data)
         else:
-            found = next((f for f in self._folders_collection if f.get("id") == str(folder_data)), None)
-            f_obj = dict(found) if found else {"id": str(folder_data), "name": "Folder"}
+            found = next((f for f in self._folders_collection if f.get("id") == folder_data), None)
+            f_obj = dict(found) if found else {"id": folder_data, "name": "Folder"}
 
         folder_id = str(f_obj.get("id") or "")
         folder_name = str(f_obj.get("name") or "Folder")
@@ -516,12 +537,12 @@ class ClayBankApp(ft.Container):
             folder_depth=depth,
             breadcrumb_trail=trail,
             on_back=self.close_folder_detail_view,
-            on_select_subfolder=self.open_folder_detail_view,
-            on_select_save=self.open_note_view,
+            on_select_subfolder=self._action_select_folder,
+            on_select_save=self._action_select_save,
             on_rename_folder=self.open_rename_folder_sheet,
             on_add_subfolder=self.open_create_subfolder_sheet,
             on_delete_folder=self.confirm_delete_folder,
-            on_ask_folder=lambda f_id, f_name: self.open_ask_view(scope=f_id, folder_name=f_name),
+            on_ask_folder=self._action_ask_folder,
             theme_mode=self.theme_mode_val,
         )
 
@@ -782,7 +803,7 @@ class ClayBankApp(ft.Container):
             save_id = str(save.get("id") or save.get("save_id") or "mock-save-id")
             save_data = dict(save)
         else:
-            save_id = str(save)
+            save_id = save
             found = next(
                 (s for s in self.inbox_view._saves if str(s.get("id") or s.get("save_id")) == save_id),
                 None,
@@ -987,7 +1008,7 @@ class ClayBankApp(ft.Container):
             folder_name=folder_name,
             on_back=self.close_ask_view,
             on_ask_query=self.handle_ask_query,
-            on_click_citation=lambda save_id, anchor: self.open_note_view(save_id, jump_target=anchor),
+            on_click_citation=self._action_click_citation,
             save_lookup=save_lookup,
             theme_mode=self.theme_mode_val,
         )

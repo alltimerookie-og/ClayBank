@@ -156,6 +156,7 @@ class TestSyncCoordinator:
 
         coord.register_conflict("save-01", "Chicken Soup", "# Local Edit", "2026-10-31T12:00:00Z")
         assert coord.sync_status == "Conflict"
+        assert coord.active_conflict is not None
         assert coord.active_conflict["save_id"] == "save-01"
 
         coord.clear_conflict()

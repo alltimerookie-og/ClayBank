@@ -6,6 +6,8 @@ Derived from Docs/Phases.md Phase 7, Docs/Design.md §8, Docs/UIUX.md §11, and 
 
 from __future__ import annotations
 
+from typing import Any
+
 import flet as ft
 
 from app.shell.theme import get_palette
@@ -20,7 +22,7 @@ from app.shell.tokens import (
 from app.ui.card import ClayCard
 
 
-def format_storage_size(byte_count: int | float | None) -> str:
+def format_storage_size(byte_count: Any) -> str:
     """Format a byte count into a human-readable storage string (B, KB, MB, GB)."""
     if byte_count is None:
         return "0 B"
@@ -40,10 +42,10 @@ def format_storage_size(byte_count: int | float | None) -> str:
         return f"{int(val)} B"
     elif val < mb:
         size_kb = val / kb
-        return f"{size_kb:.1f} KB" if size_kb < 10 else f"{int(round(size_kb))} KB"
+        return f"{size_kb:.1f} KB" if size_kb < 10 else f"{round(size_kb)} KB"
     elif val < gb:
         size_mb = val / mb
-        return f"{size_mb:.1f} MB" if size_mb < 10 and not size_mb.is_integer() else f"{int(round(size_mb))} MB"
+        return f"{size_mb:.1f} MB" if size_mb < 10 and not size_mb.is_integer() else f"{round(size_mb)} MB"
     else:
         size_gb = val / gb
         formatted = f"{size_gb:.1f}"
