@@ -5,6 +5,9 @@ import asyncio
 import os
 import sys
 import time
+from typing import Any, cast
+
+import flet as ft
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -46,13 +49,13 @@ class FakeState:
 
 class FakePage:
     def __init__(self):
-        self.tasks = []
-        self.updates = 0
+        self.tasks: list[tuple[Any, tuple[Any, ...]]] = []
+        self.updates: int = 0
 
-    def run_task(self, fn, *args):
+    def run_task(self, fn: Any, *args: Any) -> None:
         self.tasks.append((fn, args))
 
-    def update(self):
+    def update(self) -> None:
         self.updates += 1
 
 
@@ -74,7 +77,7 @@ def test_polling_starts_when_active_jobs_present():
     page = FakePage()
     view = InboxView(state, on_add_link=lambda: None, on_open_save=lambda s: None)
 
-    asyncio.run(view.refresh(page))
+    asyncio.run(view.refresh(cast(ft.Page, page)))
 
     assert view.jobs["s1"] == "extracting"
     assert len(page.tasks) == 1
@@ -99,7 +102,7 @@ def test_polling_does_not_start_when_all_jobs_terminal():
     page = FakePage()
     view = InboxView(state, on_add_link=lambda: None, on_open_save=lambda s: None)
 
-    asyncio.run(view.refresh(page))
+    asyncio.run(view.refresh(cast(ft.Page, page)))
 
     assert view.jobs["s1"] == "ready"
     assert len(page.tasks) == 0
@@ -130,7 +133,7 @@ def test_poll_updates_state_and_terminates_on_completion():
     view.jobs["s1"] = "queued"
     view.poll_interval = 0.01  # fast for testing
 
-    asyncio.run(view._poll_active_jobs(page))
+    asyncio.run(view._poll_active_jobs(cast(ft.Page, page)))
 
     assert view.jobs["s1"] == "ready"
     assert view.items[0]["title"] == "Done Title"
@@ -147,7 +150,7 @@ def test_poll_terminates_immediately_on_navigation_away():
 
     # Switch tab before polling starts
     state.tab = "folders"
-    asyncio.run(view._poll_active_jobs(page))
+    asyncio.run(view._poll_active_jobs(cast(ft.Page, page)))
 
     assert view._polling is False
     assert len(client.read_calls) == 0
@@ -176,7 +179,7 @@ def test_poll_terminates_on_navigation_during_sleep():
     view.poll_interval = 0.02
 
     async def run_and_navigate():
-        task = asyncio.create_task(view._poll_active_jobs(page))
+        task = asyncio.create_task(view._poll_active_jobs(cast(ft.Page, page)))
         await asyncio.sleep(0.01)
         state.tab = "search"
         await task
@@ -205,7 +208,7 @@ def test_poll_terminates_on_timeout():
     view.max_duration = 0.03  # expires in 30ms
 
     start = time.monotonic()
-    asyncio.run(view._poll_active_jobs(page))
+    asyncio.run(view._poll_active_jobs(cast(ft.Page, page)))
     elapsed = time.monotonic() - start
 
     assert elapsed < 0.2
@@ -231,7 +234,7 @@ def test_poll_maps_error_to_failed_state():
     view.jobs["s1"] = "extracting"
     view.poll_interval = 0.01
 
-    asyncio.run(view._poll_active_jobs(page))
+    asyncio.run(view._poll_active_jobs(cast(ft.Page, page)))
 
     assert view.jobs["s1"] == "failed"
     assert view._polling is False
@@ -250,7 +253,7 @@ def test_poll_handles_exception_without_crashing():
     view.max_duration = 0.02
 
     # Must complete cleanly without raising
-    asyncio.run(view._poll_active_jobs(page))
+    asyncio.run(view._poll_active_jobs(cast(ft.Page, page)))
     assert view._polling is False
 
 
@@ -262,5 +265,5 @@ def test_polling_does_not_spawn_duplicate_tasks():
     view.jobs["s1"] = "extracting"
     view._polling = True
 
-    view._check_start_polling(page)
+    view._check_start_polling(cast(ft.Page, page))
     assert len(page.tasks) == 0
