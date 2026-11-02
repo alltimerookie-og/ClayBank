@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpcore
+from httpcore._backends.anyio import AnyIOBackend
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -157,7 +158,7 @@ def validate_url_security(url: str, resolve_dns: bool = True) -> tuple[bool, str
     return True, ""
 
 
-class SSRFProtectedBackend(httpcore.AnyIOBackend):
+class SSRFProtectedBackend(AnyIOBackend):
     """Network backend that pins connections to pre-validated public IPs to prevent DNS rebinding."""
 
     async def connect_tcp(
@@ -228,16 +229,18 @@ class SSRFProtectedTransport(httpx.AsyncHTTPTransport):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self._pool = httpcore.AsyncConnectionPool(
-            ssl_context=self._pool._ssl_context,
-            max_connections=self._pool._max_connections,
-            max_keepalive_connections=self._pool._max_keepalive_connections,
-            keepalive_expiry=self._pool._keepalive_expiry,
-            http1=self._pool._http1,
-            http2=self._pool._http2,
-            retries=self._pool._retries,
-            network_backend=SSRFProtectedBackend(),
-        )
+        pool = self._pool
+        if isinstance(pool, httpcore.AsyncConnectionPool):
+            self._pool = httpcore.AsyncConnectionPool(
+                ssl_context=getattr(pool, "_ssl_context", None),
+                max_connections=getattr(pool, "_max_connections", 100),
+                max_keepalive_connections=getattr(pool, "_max_keepalive_connections", 20),
+                keepalive_expiry=getattr(pool, "_keepalive_expiry", 5.0),
+                http1=getattr(pool, "_http1", True),
+                http2=getattr(pool, "_http2", False),
+                retries=getattr(pool, "_retries", 0),
+                network_backend=SSRFProtectedBackend(),
+            )
 
 
 def create_ssrf_protected_client(timeout: httpx.Timeout | None = None) -> httpx.AsyncClient:
