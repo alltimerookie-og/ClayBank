@@ -85,6 +85,19 @@ class MockASR:
         return self.transcript
 
 
+class MockLLM:
+    async def generate_note(self, title: str, kind: str, content: str, user_context: str | None = None):
+        from backend.llm.models import NoteGenerationResult, NoteStructuredOutput
+        return NoteGenerationResult(
+            is_success=True,
+            structured_output=NoteStructuredOutput(
+                overview=f"Overview of {title}",
+                key_points=["Key point 1", "Key point 2"],
+                links=[],
+            ),
+        )
+
+
 async def wait_for_job_ready(client: AsyncClient, save_id: str, timeout: float = 4.0) -> dict:
     """Poll GET /saves/{id} until the job completes in 'ready' state."""
     start = time.monotonic()
@@ -117,6 +130,7 @@ def e2e_env(tmp_path: Path):
         article_extractor=article_ext,
         youtube_extractor=video_ext,
         asr_provider=asr,
+        llm_provider=MockLLM(),
         rescue_provider=Tier2RescueStub(),
         media_base_dir=media_root,
     )

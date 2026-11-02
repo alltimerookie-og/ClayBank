@@ -55,6 +55,37 @@ class MockASRProvider:
         return self.transcript
 
 
+class MockLLMProvider:
+    def __init__(self, raise_err: Exception | None = None) -> None:
+        self.raise_err = raise_err
+
+    async def generate_note(self, title: str, kind: str, content: str, user_context: str | None = None):
+        if self.raise_err:
+            raise self.raise_err
+        from backend.llm.models import NoteGenerationResult, NoteStructuredOutput
+        return NoteGenerationResult(
+            is_success=True,
+            structured_output=NoteStructuredOutput(
+                overview=f"Overview of {title}",
+                key_points=["Key point 1", "Key point 2"],
+                links=[],
+            ),
+        )
+
+
+@pytest.fixture(autouse=True)
+def default_mock_llm(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.processing import pipeline
+    original_init = pipeline.PipelineEngine.__init__
+
+    def _init_with_mock_llm(self: Any, *args: Any, **kwargs: Any) -> None:
+        if "llm_provider" not in kwargs or kwargs["llm_provider"] is None:
+            kwargs["llm_provider"] = MockLLMProvider()
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline.PipelineEngine, "__init__", _init_with_mock_llm)
+
+
 async def seed_test_save(store: Store, url: str = "https://example.com/article", platform: str = "web") -> str:
     """Helper to insert a test save and initial queued job."""
     save_id = new_uuid7()

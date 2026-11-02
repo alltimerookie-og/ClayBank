@@ -9,6 +9,7 @@ from fastapi import APIRouter, Header, Query, Request
 from backend.api.envelope import err, ok
 from backend.capture.service import CaptureError, capture_save, save_to_contract
 from backend.contracts.ids import now_iso_z
+from backend.processing.notes import execute_note_persistence_transaction
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["saves"])
@@ -93,6 +94,65 @@ async def read_save(request: Request, save_id: str):
     note = await store.fetchone("SELECT * FROM notes WHERE save_id=?", (save_id,))
     job = await store.fetchone("SELECT * FROM jobs WHERE save_id=?", (save_id,))
     return ok({"save": save_to_contract(row), "note": _note(note), "job": _job(job)})
+
+
+@router.put("/saves/{save_id}/note")
+async def put_save_note(request: Request, save_id: str):
+    store = request.app.state.store
+
+    # 1. Verify parent save exists
+    save = await store.fetchone("SELECT * FROM saves WHERE id=?", (save_id,))
+    if save is None:
+        return err("not_found", "Save not found", None, 404)
+
+    # 2. Parse request JSON body
+    try:
+        body = await request.json()
+    except Exception:
+        return err("validation", "Body must be JSON", None, 422)
+    if not isinstance(body, dict):
+        return err("validation", "Body must be an object", None, 422)
+
+    markdown = body.get("markdown")
+    client_updated_at = body.get("updated_at")
+
+    if not isinstance(markdown, str) or not markdown.strip():
+        return err("validation", "Field 'markdown' must be a non-empty string", None, 422)
+    if not isinstance(client_updated_at, str) or not client_updated_at.strip():
+        return err("validation", "Field 'updated_at' must be a valid ISO datetime string", None, 422)
+
+    # 3. Optimistic concurrency control (409 Conflict)
+    existing_note = await store.fetchone("SELECT * FROM notes WHERE save_id=?", (save_id,))
+    if existing_note is not None and existing_note.get("updated_at"):
+        server_updated_at = existing_note["updated_at"]
+        if client_updated_at < server_updated_at:
+            return err(
+                "conflict",
+                "Note has been modified on server since your last fetch",
+                {"server_updated_at": server_updated_at, "client_updated_at": client_updated_at},
+                409,
+            )
+
+    # 4. Atomic write-through and section index rebuild
+    now = now_iso_z()
+
+    def _tx(conn):
+        execute_note_persistence_transaction(
+            conn=conn,
+            save_id=save_id,
+            markdown=markdown,
+            now=now,
+        )
+        conn.execute(
+            "INSERT INTO changes(entity, entity_id, op, at) VALUES ('note', ?, 'put', ?)",
+            (save_id, now),
+        )
+
+    await store.run_tx(_tx)
+
+    # 5. Return updated note according to Docs/api/schemas/note.json
+    updated_row = await store.fetchone("SELECT * FROM notes WHERE save_id=?", (save_id,))
+    return ok(_note(updated_row))
 
 
 @router.post("/saves/{save_id}/reprocess")

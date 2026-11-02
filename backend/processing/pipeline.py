@@ -23,7 +23,15 @@ from backend.extraction.captions import enrich_result_with_captions
 from backend.extraction.protocol import Extractor, Tier2RescueProvider
 from backend.extraction.rescue import Tier2RescueStub
 from backend.extraction.ytdlp import YouTubeMetadataExtractor
+from backend.llm.meta import MetaLLMProvider
+from backend.llm.protocol import LLMProvider
 from backend.processing.media import IsolatedJobMedia
+from backend.processing.notes import (
+    build_frontmatter_yaml,
+    execute_note_persistence_transaction,
+    generate_note_markdown,
+    parse_frontmatter,
+)
 from backend.store.db import Store
 
 logger = logging.getLogger(__name__)
@@ -48,6 +56,7 @@ class PipelineEngine:
         article_extractor: Extractor | None = None,
         rescue_provider: Tier2RescueProvider | None = None,
         asr_provider: ASRProvider | None = None,
+        llm_provider: LLMProvider | None = None,
         media_base_dir: Path | None = None,
     ) -> None:
         self.store = store
@@ -55,6 +64,7 @@ class PipelineEngine:
         self.article_extractor = article_extractor or ArticleExtractor()
         self.rescue_provider = rescue_provider or Tier2RescueStub()
         self.asr_provider = asr_provider or get_asr_provider("local")
+        self.llm_provider = llm_provider or MetaLLMProvider()
         self.media_base_dir = media_base_dir
 
         # In-memory concurrency tracking to prevent duplicate job processing
@@ -166,6 +176,7 @@ class PipelineEngine:
         # ---------------------------------------------------------
         has_audio = extraction_res.capability_flags.has_audio if extraction_res else False
         transcript_available = extraction_res.transcript_available if extraction_res else False
+        transcript_text: str | None = extraction_res.body if (extraction_res and extraction_res.transcript_available) else None
 
         should_transcribe = has_audio and not transcript_available and start_stage in ("extracting", "transcribing")
 
@@ -180,6 +191,7 @@ class PipelineEngine:
             try:
                 transcript = await self._run_transcription(save_id, url)
                 if transcript:
+                    transcript_text = transcript
                     await self.store.execute(
                         "UPDATE notes SET transcript=?, updated_at=? WHERE save_id=?",
                         (transcript, now, save_id),
@@ -198,9 +210,193 @@ class PipelineEngine:
             skipped.append(JobStage.TRANSCRIBING)
 
         # ---------------------------------------------------------
-        # Phase 3 Non-goals: ANALYZING & SORTING
+        # Stage 3: ANALYZING
         # ---------------------------------------------------------
-        skipped.append(JobStage.ANALYZING)
+        should_analyze = start_stage in ("extracting", "transcribing", "analyzing")
+
+        if should_analyze:
+            t0 = time.perf_counter()
+            now = now_iso_z()
+            await self.store.execute(
+                "UPDATE jobs SET state='analyzing', updated_at=? WHERE save_id=?",
+                (now, save_id),
+            )
+
+            existing_note = await self.store.fetchone("SELECT * FROM notes WHERE save_id=?", (save_id,))
+            has_existing_body = False
+            if existing_note and existing_note.get("markdown"):
+                _, existing_body = parse_frontmatter(existing_note["markdown"])
+                if existing_body.strip() and existing_note.get("overview"):
+                    has_existing_body = True
+
+            # Invariant (ADR 0005): Reprocessing from extracting/transcribing never modifies note body.
+            # Only explicit 'from=analyzing' regenerates the body text.
+            if has_existing_body and start_stage in ("extracting", "transcribing"):
+                # Reprocess re-run: update stable frontmatter facts only, keep user body untouched
+                facts = {
+                    "source": platform,
+                    "channel": save.get("channel") or (extraction_res.channel if extraction_res else None),
+                    "video_url": save.get("url") if is_youtube_url(url, platform) else None,
+                    "duration": save.get("duration") or (extraction_res.duration if extraction_res else None),
+                    "published": extraction_res.published if extraction_res else None,
+                    "saved": save.get("captured_at", now)[:10] if save.get("captured_at") else None,
+                    "folder": existing_note.get("folder_path"),
+                    "tags": json.loads(existing_note["tags_json"]) if existing_note.get("tags_json") else [],
+                }
+                _, body_only = parse_frontmatter(existing_note["markdown"])
+                updated_md = build_frontmatter_yaml(facts) + body_only
+
+                def _tx_rerun(conn: Any) -> None:
+                    execute_note_persistence_transaction(
+                        conn=conn,
+                        save_id=save_id,
+                        markdown=updated_md,
+                        overview=existing_note.get("overview"),
+                        key_points=json.loads(existing_note["key_points_json"]) if existing_note.get("key_points_json") else None,
+                        links=json.loads(existing_note["links_json"]) if existing_note.get("links_json") else None,
+                        transcript=existing_note.get("transcript"),
+                        now=now,
+                    )
+                await self.store.run_tx(_tx_rerun)
+            else:
+                # Initial note generation or explicit 'from=analyzing'
+                if not transcript_text:
+                    transcript_text = (existing_note.get("transcript") if existing_note else None) or (
+                        extraction_res.body if (extraction_res and extraction_res.transcript_available) else None
+                    )
+
+                article_body = extraction_res.body if (extraction_res and not extraction_res.transcript_available) else None
+                if not article_body and save.get("user_context"):
+                    article_body = save.get("user_context")
+
+                content_to_analyze = transcript_text or article_body or ""
+                save_title = save.get("title") or (extraction_res.title if extraction_res else None) or "Untitled Save"
+                save_channel = (extraction_res.channel if extraction_res else None) or save.get("channel")
+                save_kind = save.get("kind") or (extraction_res.kind.value if extraction_res else "unknown")
+
+                facts = {
+                    "source": platform,
+                    "channel": save_channel,
+                    "video_url": save.get("url") if is_youtube_url(url, platform) else None,
+                    "duration": save.get("duration") or (extraction_res.duration if extraction_res else None),
+                    "published": extraction_res.published if extraction_res else None,
+                    "saved": save.get("captured_at", now)[:10] if save.get("captured_at") else None,
+                    "folder": existing_note.get("folder_path") if existing_note else None,
+                    "tags": json.loads(existing_note["tags_json"]) if (existing_note and existing_note.get("tags_json")) else [],
+                }
+
+                if content_to_analyze.strip():
+                    try:
+                        llm_res = await self.llm_provider.generate_note(
+                            title=save_title,
+                            kind=save_kind,
+                            content=content_to_analyze,
+                            user_context=save.get("user_context"),
+                        )
+                    except Exception as llm_err:
+                        logger.warning("Unhandled LLM exception for save %s: %s", save_id, type(llm_err).__name__)
+                        from backend.llm.models import NoteGenerationResult
+                        llm_res = NoteGenerationResult(
+                            is_success=False,
+                            error_category="generation_error",
+                        )
+
+                    if llm_res.is_success and llm_res.structured_output:
+                        structured = llm_res.structured_output
+                        note_md = generate_note_markdown(
+                            title=save_title,
+                            facts=facts,
+                            structured=structured,
+                            transcript=transcript_text,
+                        )
+
+                        links_dicts = [l.model_dump() for l in structured.links]
+
+                        def _tx_success(conn: Any) -> None:
+                            execute_note_persistence_transaction(
+                                conn=conn,
+                                save_id=save_id,
+                                markdown=note_md,
+                                overview=structured.overview,
+                                key_points=structured.key_points,
+                                links=links_dicts,
+                                transcript=transcript_text,
+                                now=now,
+                            )
+                        await self.store.run_tx(_tx_success)
+                    else:
+                        # Controlled graceful degradation
+                        logger.warning(
+                            "LLM note generation degraded for save %s: %s",
+                            save_id,
+                            llm_res.error_category or "unknown_error",
+                        )
+                        failed.append(JobStage.ANALYZING)
+                        if last_error is None:
+                            last_error = ErrorCode.LLM_UNAVAILABLE
+
+                        degraded_md = generate_note_markdown(
+                            title=save_title,
+                            facts=facts,
+                            structured=None,
+                            transcript=transcript_text,
+                            raw_body=article_body,
+                        )
+
+                        def _tx_fail(conn: Any) -> None:
+                            execute_note_persistence_transaction(
+                                conn=conn,
+                                save_id=save_id,
+                                markdown=degraded_md,
+                                overview=None,
+                                key_points=None,
+                                links=None,
+                                transcript=transcript_text,
+                                now=now,
+                            )
+                            conn.execute(
+                                "UPDATE saves SET needs_review=1, updated_at=? WHERE id=?",
+                                (now, save_id),
+                            )
+                        await self.store.run_tx(_tx_fail)
+                else:
+                    logger.info("No content to analyze for save %s; synthesizing degraded shell", save_id)
+                    failed.append(JobStage.ANALYZING)
+                    if last_error is None:
+                        last_error = ErrorCode.EXTRACTION_FAILED
+
+                    degraded_md = generate_note_markdown(
+                        title=save_title,
+                        facts=facts,
+                        structured=None,
+                        transcript=None,
+                        raw_body=None,
+                    )
+
+                    def _tx_nocontent(conn: Any) -> None:
+                        execute_note_persistence_transaction(
+                            conn=conn,
+                            save_id=save_id,
+                            markdown=degraded_md,
+                            overview=None,
+                            key_points=None,
+                            links=None,
+                            transcript=None,
+                            now=now,
+                        )
+                        conn.execute(
+                            "UPDATE saves SET needs_review=1, updated_at=? WHERE id=?",
+                            (now, save_id),
+                        )
+                    await self.store.run_tx(_tx_nocontent)
+
+            timings[JobStage.ANALYZING] = int((time.perf_counter() - t0) * 1000)
+        else:
+            skipped.append(JobStage.ANALYZING)
+
+        # ---------------------------------------------------------
+        # Phase 4 Non-goals: SORTING (deferred to Phase 6)
+        # ---------------------------------------------------------
         skipped.append(JobStage.SORTING)
 
         # ---------------------------------------------------------
