@@ -133,6 +133,7 @@ def test_ask_answer_card_local_engine_slower_hint():
         }
     )
     col_cloud = cloud_card.content
+    assert isinstance(col_cloud, ft.Column)
     texts_cloud = [c for c in col_cloud.controls if isinstance(c, ft.Text)]
     assert not any("running on device" in t.value for t in texts_cloud)
 
@@ -144,5 +145,6 @@ def test_ask_answer_card_local_engine_slower_hint():
         }
     )
     col_local = local_card.content
+    assert isinstance(col_local, ft.Column)
     texts_local = [c for c in col_local.controls if isinstance(c, ft.Text)]
     assert any("running on device · slower" in t.value for t in texts_local)

@@ -88,7 +88,7 @@ def test_claybank_app_search_tab_and_ask_library_flow():
     search_view = app.app_shell.content_area.content
 
     # Open Ask from library banner
-    search_view.on_open_ask()
+    search_view._handle_open_ask()
     assert isinstance(app.viewport.content, AskView)
     assert app.current_ask_view is not None
     assert app.current_ask_view.scope == "library"
@@ -139,6 +139,7 @@ def test_ask_view_citation_jump_to_note_and_back():
     assert app.viewport.content is ask_view
 
     # Simulate citation click
+    assert ask_view.on_click_citation is not None
     ask_view.on_click_citation("save_sourdough_01", "fermentation")
 
     # Should have navigated to ItemNoteView

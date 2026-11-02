@@ -46,15 +46,14 @@ def test_ask_view_folder_scope_initialization():
 
 def test_ask_view_back_navigation():
     """AskView back button triggers on_back callback."""
-    back_invoked = False
+    back_invoked: list[bool] = []
 
     def on_back():
-        nonlocal back_invoked
-        back_invoked = True
+        back_invoked.append(True)
 
     view = AskView(on_back=on_back)
     view._handle_back()
-    assert back_invoked is True
+    assert back_invoked == [True]
 
 
 def test_ask_view_question_submission_and_citations():

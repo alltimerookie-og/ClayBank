@@ -140,7 +140,7 @@ class ClayBankApp(ft.Container):
             results=search_results,
             on_select_save=self.open_note_view,
             on_jump_target=lambda s, t: self.open_note_view(s, jump_target=t),
-            on_open_ask=lambda: self.open_ask_view(scope="library"),
+            on_open_ask=lambda s=None: self.open_ask_view(scope=s or "library"),
             on_search_query=self.handle_search_query,
             theme_mode=theme_mode,
         )
