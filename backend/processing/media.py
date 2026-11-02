@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Valid save_id characters (alphanumeric, hyphen, underscore) to prevent path traversal
 _SAVE_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
+_STALE_JOB_DIR_PATTERN = re.compile(r"^job_[a-zA-Z0-9_\-]+_[a-f0-9]{32}$")
 
 
 def get_base_media_dir() -> Path:
@@ -27,6 +28,57 @@ def get_base_media_dir() -> Path:
         Path: Base directory path under system temporary directory.
     """
     return Path(tempfile.gettempdir()) / "claybank"
+
+
+def cleanup_stale_media_directories(base_dir: Path | None = None) -> int:
+    """Scan and remove abandoned job media directories left by crashed or terminated processes.
+
+    Runs during backend startup before active jobs are launched. Because zero jobs
+    are running at startup, all pre-existing 'job_*' directories are abandoned and
+    safe to reclaim immediately.
+
+    Args:
+        base_dir: Optional base directory to sweep (defaults to get_base_media_dir()).
+
+    Returns:
+        int: Count of stale directories successfully cleaned up.
+    """
+    root = base_dir if base_dir is not None else get_base_media_dir()
+    if not root.exists() or not root.is_dir():
+        return 0
+
+    cleaned_count = 0
+    try:
+        entries = list(root.iterdir())
+    except OSError as err:
+        logger.warning("Could not list media directory %s: %s", root, err)
+        return 0
+
+    for entry in entries:
+        if entry.is_dir() and entry.name.startswith("job_"):
+            try:
+                shutil.rmtree(entry, ignore_errors=False)
+                cleaned_count += 1
+            except (PermissionError, OSError) as err:
+                gc.collect()
+                try:
+                    shutil.rmtree(entry, ignore_errors=True)
+                except Exception as retry_err:
+                    logger.warning(
+                        "Deferred cleanup of stale directory %s: %s (retry: %s)",
+                        entry,
+                        err,
+                        retry_err,
+                    )
+                else:
+                    if not entry.exists():
+                        cleaned_count += 1
+                    else:
+                        logger.warning("Failed to clean up stale directory %s: %s", entry, err)
+
+    if cleaned_count > 0:
+        logger.info("Cleaned up %d stale job media directories from %s", cleaned_count, root)
+    return cleaned_count
 
 
 class IsolatedJobMedia:

@@ -8,10 +8,16 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 import shutil
+import tempfile
+import uuid
 from unittest.mock import patch
 import pytest
 
-from backend.processing.media import IsolatedJobMedia, get_base_media_dir
+from backend.processing.media import (
+    IsolatedJobMedia,
+    cleanup_stale_media_directories,
+    get_base_media_dir,
+)
 
 
 @pytest.mark.anyio
@@ -218,3 +224,63 @@ async def test_cleanup_retry_on_permission_error(tmp_path: Path) -> None:
 
     assert not job_dir.exists()
     assert call_count >= 2
+
+
+def test_cleanup_stale_media_directories_removes_old_job_dirs(tmp_path: Path) -> None:
+    """Verify that startup sweeper purges abandoned job directories while preserving non-job files."""
+    stale_job_1 = tmp_path / "job_save1_0123456789abcdef0123456789abcdef"
+    stale_job_1.mkdir()
+    (stale_job_1 / "abandoned_audio.mp3").write_bytes(b"abandoned audio")
+
+    stale_job_2 = tmp_path / "job_save2_fedcba9876543210fedcba9876543210"
+    stale_job_2.mkdir()
+    (stale_job_2 / "abandoned_video.mp4").write_bytes(b"abandoned video")
+
+    # Non-job directory and non-job file in the same root
+    preserved_dir = tmp_path / "custom_models"
+    preserved_dir.mkdir()
+    (preserved_dir / "model.onnx").write_bytes(b"model data")
+
+    preserved_file = tmp_path / "keepme.txt"
+    preserved_file.write_text("important metadata", encoding="utf-8")
+
+    # Execute sweeper
+    cleaned = cleanup_stale_media_directories(tmp_path)
+
+    assert cleaned == 2
+    assert not stale_job_1.exists()
+    assert not stale_job_2.exists()
+    assert preserved_dir.exists()
+    assert (preserved_dir / "model.onnx").exists()
+    assert preserved_file.exists()
+
+
+def test_cleanup_stale_media_directories_nonexistent_root() -> None:
+    """Verify that sweeper safely returns 0 when root directory does not exist."""
+    nonexistent = Path(tempfile.gettempdir()) / f"claybank_nonexistent_{uuid.uuid4().hex}"
+    assert cleanup_stale_media_directories(nonexistent) == 0
+
+
+def test_cleanup_stale_media_directories_retries_on_locked_dir(tmp_path: Path) -> None:
+    """Verify that sweeper retries and cleans directory when initial rmtree raises PermissionError."""
+    locked_job = tmp_path / "job_locked_1234567890abcdef1234567890abcdef"
+    locked_job.mkdir()
+    (locked_job / "temp.dat").write_bytes(b"locked data")
+
+    original_rmtree = shutil.rmtree
+    call_count = 0
+
+    def mock_rmtree(path, ignore_errors=False):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise PermissionError("Access denied (simulated lock)")
+        return original_rmtree(path, ignore_errors=ignore_errors)
+
+    with patch("backend.processing.media.shutil.rmtree", side_effect=mock_rmtree):
+        cleaned = cleanup_stale_media_directories(tmp_path)
+
+    assert cleaned == 1
+    assert not locked_job.exists()
+    assert call_count >= 2
+
