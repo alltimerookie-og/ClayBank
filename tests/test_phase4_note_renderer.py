@@ -101,7 +101,10 @@ def test_markdown_renderer_style_sheet_palette() -> None:
     palette = get_palette(ft.ThemeMode.DARK)
     style_sheet = build_markdown_style_sheet(palette)
 
+    assert style_sheet.p_text_style is not None
     assert style_sheet.p_text_style.color == palette["ink"]
+    assert style_sheet.a_text_style is not None
     assert style_sheet.a_text_style.color == palette["accent"]
+    assert style_sheet.code_text_style is not None
     assert style_sheet.code_text_style.color == palette["ink"]
 
