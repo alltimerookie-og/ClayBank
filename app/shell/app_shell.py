@@ -201,7 +201,7 @@ class AppShellLayout(ft.Column):
                 theme_mode=theme_mode,
             ),
             TAB_SEARCH: TabPlaceholderView(
-                "Search & Ask",
+                "Search",
                 description="Search saves and chat with your AI knowledge base.",
                 icon_name="search",
                 theme_mode=theme_mode,
