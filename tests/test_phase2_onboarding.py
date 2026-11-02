@@ -13,9 +13,9 @@ def test_onboarding_initial_step() -> None:
 
     assert view.current_step == 0
     assert view.step_title.value == ONBOARDING_STEPS[0]["title"]
-    assert view.back_button.visible is False
+    assert not view.back_button.visible
     assert view.next_button.content == "Next"
-    assert view.skip_button.visible is True
+    assert view.skip_button.visible
     assert len(view.indicator_dots) == 3
     assert view.indicator_dots[0].width == 24.0
     assert view.indicator_dots[1].width == 8.0
@@ -30,7 +30,7 @@ def test_onboarding_step_transitions() -> None:
     view.next_step()
     assert view.current_step == 1
     assert view.step_title.value == ONBOARDING_STEPS[1]["title"]
-    assert view.back_button.visible is True
+    assert view.back_button.visible
     assert view.next_button.content == "Next"
     assert view.indicator_dots[0].width == 8.0
     assert view.indicator_dots[1].width == 24.0

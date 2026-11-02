@@ -8,7 +8,7 @@ Derived from Docs/Phases.md Phase 2, Docs/UIUX.md §4.2, and Prototype v2.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any, Callable, cast
 import flet as ft
 
 from app.shell.theme import COVER_GRADIENTS, get_palette
@@ -163,7 +163,7 @@ class OnboardingView(ft.Container):
         )
 
         # Progress indicators (dots)
-        self.indicator_dots: list[ft.Control] = [
+        self.indicator_dots: list[ft.Container] = [
             ft.Container(
                 width=24.0 if i == 0 else 8.0,
                 height=8.0,
@@ -174,7 +174,7 @@ class OnboardingView(ft.Container):
         ]
 
         self.indicators_row = ft.Row(
-            controls=self.indicator_dots,
+            controls=cast(list[ft.Control], self.indicator_dots),
             alignment=ft.MainAxisAlignment.CENTER,
             spacing=SPACING_8,
         )

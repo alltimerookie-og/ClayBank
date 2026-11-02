@@ -9,7 +9,7 @@ Derived from Docs/Phases.md Phase 2, Docs/api/schemas/save-capture.json, and Pro
 from __future__ import annotations
 
 from urllib.parse import urlparse
-from typing import Any, Callable
+from typing import Any, Callable, cast
 import flet as ft
 
 from app.shell.icons import get_icon
@@ -166,7 +166,7 @@ class AddLinkPasteSheet(ClaySheet):
             self.tag_chips.append(chip)
 
         self.tags_row = ft.Row(
-            controls=list(self.tag_chips),
+            controls=cast(list[ft.Control], self.tag_chips),
             spacing=SPACING_8,
             wrap=True,
         )
