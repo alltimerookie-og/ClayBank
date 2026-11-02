@@ -320,6 +320,7 @@ async def test_e2e_startup_recovery(e2e_env):
     assert recovered == 1
 
     job_row = await store.fetchone("SELECT state, error FROM jobs WHERE save_id=?", (save_id,))
+    assert job_row is not None
     assert job_row["state"] == "queued"
     assert job_row["error"] is None
 
