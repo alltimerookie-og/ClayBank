@@ -34,6 +34,8 @@ from app.views.inbox_view import InboxView
 from app.views.note.note_view import ItemNoteView
 from app.views.onboarding_view import OnboardingView
 from app.views.paste_sheet import AddLinkPasteSheet
+from app.views.search.ask_view import AskView
+from app.views.search.search_view import SearchView
 from app.views.splash_view import SplashView
 
 UNDO_DURATION_MS: int = 5000
@@ -66,6 +68,9 @@ class ClayBankApp(ft.Container):
         on_delete_folder: Callable[[str], Any] | None = None,
         on_accept_cluster: Callable[[dict[str, Any]], Any] | None = None,
         on_ignore_cluster: Callable[[dict[str, Any]], Any] | None = None,
+        on_search_query: Callable[[str, str | None], list[dict[str, Any]]] | None = None,
+        on_ask_query: Callable[[str, str | None], dict[str, Any]] | None = None,
+        search_results: list[dict[str, Any]] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
         self.has_seen_onboarding = has_seen_onboarding
@@ -86,6 +91,9 @@ class ClayBankApp(ft.Container):
         self.on_delete_folder = on_delete_folder
         self.on_accept_cluster = on_accept_cluster
         self.on_ignore_cluster = on_ignore_cluster
+        self.on_search_query = on_search_query
+        self.on_ask_query = on_ask_query
+        self.current_ask_view: AskView | None = None
 
         self._last_snackbar: UndoSnackBar | None = None
         self.is_paste_sheet_open = False
@@ -127,10 +135,21 @@ class ClayBankApp(ft.Container):
             theme_mode=theme_mode,
         )
 
-        # Build App Shell hosting both Inbox and Folders (strictly 4 tabs)
+        # Build Search view for Tab 2
+        self.search_view = SearchView(
+            results=search_results,
+            on_select_save=self.open_note_view,
+            on_jump_target=lambda s, t: self.open_note_view(s, jump_target=t),
+            on_open_ask=lambda: self.open_ask_view(scope="library"),
+            on_search_query=self.handle_search_query,
+            theme_mode=theme_mode,
+        )
+
+        # Build App Shell hosting Inbox, Folders, and Search (strictly 4 tabs)
         self.app_shell = AppShellLayout(
             inbox_view=self.inbox_view,
             folders_view=self.folders_view,
+            search_view=self.search_view,
             on_add_link=self.open_paste_sheet,
             initial_tab=TAB_INBOX,
             theme_mode=theme_mode,
@@ -440,6 +459,7 @@ class ClayBankApp(ft.Container):
             on_rename_folder=self.open_rename_folder_sheet,
             on_add_subfolder=self.open_create_subfolder_sheet,
             on_delete_folder=self.confirm_delete_folder,
+            on_ask_folder=lambda f_id, f_name: self.open_ask_view(scope=f_id, folder_name=f_name),
             theme_mode=self.theme_mode_val,
         )
 
@@ -881,3 +901,82 @@ class ClayBankApp(ft.Container):
         if self.on_open_url is not None:
             return self.on_open_url(url)
         return {"status": "opened", "url": url}
+
+    # =========================================================================
+    # Phase 6: Search & Ask Navigation and Coordination
+    # =========================================================================
+
+    def open_ask_view(
+        self,
+        scope: str | None = None,
+        folder_name: str | None = None,
+    ) -> AskView:
+        """Open contextual Ask AI view (from Search tab or Folder overflow menu)."""
+        self.previous_view = self.viewport.content
+
+        save_lookup: dict[str, Any] = {}
+        for s in self.inbox_view._saves:
+            s_id = str(s.get("id") or s.get("save_id") or "")
+            if s_id:
+                save_lookup[s_id] = s
+
+        ask_view = AskView(
+            scope=scope,
+            folder_name=folder_name,
+            on_back=self.close_ask_view,
+            on_ask_query=self.handle_ask_query,
+            on_click_citation=lambda save_id, anchor: self.open_note_view(save_id, jump_target=anchor),
+            save_lookup=save_lookup,
+            theme_mode=self.theme_mode_val,
+        )
+        self.current_ask_view = ask_view
+        self.viewport.content = ask_view
+        return ask_view
+
+    def close_ask_view(self) -> None:
+        """Close Ask AI view and return to previous navigation context."""
+        self.current_ask_view = None
+        self.viewport.content = self.previous_view or self.app_shell
+        self.previous_view = None
+
+    def handle_search_query(self, query: str, folder_scope: str | None = None) -> list[dict[str, Any]]:
+        """Dispatch search query to callback or filter inbox saves."""
+        if self.on_search_query is not None:
+            return self.on_search_query(query, folder_scope)
+
+        q_lower = query.lower()
+        results: list[dict[str, Any]] = []
+        for s in self.inbox_view._saves:
+            if folder_scope and s.get("folder") != folder_scope and s.get("folder_id") != folder_scope:
+                continue
+            title = str(s.get("title") or s.get("user_context") or "")
+            tags = " ".join(s.get("tags") or [])
+            if q_lower in title.lower() or q_lower in tags.lower():
+                r = dict(s)
+                r["match_reason"] = "title" if q_lower in title.lower() else "tags"
+                r["snippet"] = title
+                results.append(r)
+        return results
+
+    def handle_ask_query(self, question: str, scope: str | None = None) -> dict[str, Any]:
+        """Dispatch query to ask callback or fallback simulated grounding."""
+        if self.on_ask_query is not None:
+            return self.on_ask_query(question, scope)
+
+        first_save_id = "018f4c1a-0000-7de6-9c8e-000000000001"
+        if self.inbox_view._saves:
+            s0 = self.inbox_view._saves[0]
+            first_save_id = str(s0.get("id") or s0.get("save_id") or first_save_id)
+
+        return {
+            "answer": f"Relevant saves and notes were analyzed regarding \"{question}\".",
+            "scope": scope or "library",
+            "engine": "cloud",
+            "citations": [
+                {
+                    "save_id": first_save_id,
+                    "anchor": "overview",
+                    "quote": question,
+                }
+            ],
+        }

@@ -103,7 +103,10 @@ class SearchView(ft.Container):
         initial_query: str = "",
         folder_scope: str | None = None,
         recent_queries: Sequence[str] | None = None,
+        results: Sequence[dict[str, Any]] | None = None,
+        initial_results: Sequence[dict[str, Any]] | None = None,
         on_search: Callable[[str, str | None, str | None], Any] | None = None,
+        on_search_query: Callable[[str, str | None], list[dict[str, Any]]] | None = None,
         on_select_save: Callable[[dict[str, Any]], None] | None = None,
         on_jump_target: Callable[[dict[str, Any], str], None] | None = None,
         on_open_ask: Callable[[str | None], None] | None = None,
@@ -117,8 +120,14 @@ class SearchView(ft.Container):
         self.is_loading = False
         self.error_message: str | None = None
 
-        self._raw_results: list[dict[str, Any]] = []
-        self.on_search_callback = on_search
+        raw_in = results or initial_results
+        self._raw_results: list[dict[str, Any]] = list(raw_in) if raw_in else []
+        if on_search is not None:
+            self.on_search_callback = on_search
+        elif on_search_query is not None:
+            self.on_search_callback = lambda q, f, c: on_search_query(q, f)
+        else:
+            self.on_search_callback = None
         self.on_select_save = on_select_save
         self.on_jump_target = on_jump_target
         self.on_open_ask = on_open_ask
@@ -286,6 +295,9 @@ class SearchView(ft.Container):
 
         if initial_query:
             self.submit_search(initial_query)
+        elif self._raw_results:
+            self.recent_column.visible = False
+            self._render_results()
 
     def _handle_open_ask(self) -> None:
         """Route to Ask view scoped to library or folder."""

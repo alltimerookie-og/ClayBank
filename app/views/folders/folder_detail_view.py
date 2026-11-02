@@ -133,6 +133,7 @@ class FolderDetailView(ft.Container):
         on_rename_folder: Callable[[dict[str, Any]], None] | None = None,
         on_add_subfolder: Callable[[dict[str, Any]], None] | None = None,
         on_delete_folder: Callable[[dict[str, Any]], None] | None = None,
+        on_ask_folder: Callable[[str, str], None] | None = None,
         theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
     ) -> None:
         self.folder_data = dict(folder_data)
@@ -149,6 +150,7 @@ class FolderDetailView(ft.Container):
         self.on_rename_folder = on_rename_folder
         self.on_add_subfolder = on_add_subfolder
         self.on_delete_folder = on_delete_folder
+        self.on_ask_folder = on_ask_folder
         self.theme_mode_val = theme_mode
 
         # Gather distinct tags
@@ -215,6 +217,16 @@ class FolderDetailView(ft.Container):
 
         # Overflow menu items
         menu_items: list[ft.PopupMenuItem] = [
+            ft.PopupMenuItem(
+                content=ft.Row(
+                    controls=[
+                        ft.Icon(ft.Icons.AUTO_AWESOME_ROUNDED, size=18.0, color=palette["ink"]),
+                        ft.Text("Ask folder", color=palette["ink"]),
+                    ],
+                    spacing=SPACING_8,
+                ),
+                on_click=lambda _: self._handle_ask_folder(),
+            ),
             ft.PopupMenuItem(
                 content=ft.Row(
                     controls=[
@@ -303,6 +315,10 @@ class FolderDetailView(ft.Container):
     def _handle_back(self) -> None:
         if self.on_back:
             self.on_back()
+
+    def _handle_ask_folder(self) -> None:
+        if self.on_ask_folder:
+            self.on_ask_folder(self.folder_id, self.folder_name)
 
     def _handle_rename(self) -> None:
         if self.on_rename_folder:

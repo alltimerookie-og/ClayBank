@@ -164,6 +164,7 @@ class AppShellLayout(ft.Column):
         *,
         inbox_view: ft.Control | None = None,
         folders_view: ft.Control | None = None,
+        search_view: ft.Control | None = None,
         on_add_link: Callable[[], None] | None = None,
         on_tab_change: Callable[[int], None] | None = None,
         initial_tab: int = TAB_INBOX,
@@ -198,16 +199,17 @@ class AppShellLayout(ft.Column):
             icon_name="folder",
             theme_mode=theme_mode,
         )
+        self._search_view = search_view or TabPlaceholderView(
+            "Search",
+            description="Search saves and chat with your AI knowledge base.",
+            icon_name="search",
+            theme_mode=theme_mode,
+        )
 
         self.tab_views: dict[int, ft.Control] = {
             TAB_INBOX: self._inbox_view,
             TAB_FOLDERS: self._folders_view,
-            TAB_SEARCH: TabPlaceholderView(
-                "Search",
-                description="Search saves and chat with your AI knowledge base.",
-                icon_name="search",
-                theme_mode=theme_mode,
-            ),
+            TAB_SEARCH: self._search_view,
             TAB_SETTINGS: TabPlaceholderView(
                 "Settings",
                 description="Configure AI models, storage, themes, and device preferences.",
@@ -265,6 +267,13 @@ class AppShellLayout(ft.Column):
         self._folders_view = view
         self.tab_views[TAB_FOLDERS] = view
         if self.selected_index == TAB_FOLDERS:
+            self.content_area.content = view
+
+    def set_search_view(self, view: ft.Control) -> None:
+        """Inject or update the real Search view."""
+        self._search_view = view
+        self.tab_views[TAB_SEARCH] = view
+        if self.selected_index == TAB_SEARCH:
             self.content_area.content = view
 
     def trigger_add_link(self) -> None:

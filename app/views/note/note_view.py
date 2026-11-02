@@ -224,6 +224,11 @@ class ItemNoteView(ft.Container):
             bgcolor=palette["background"],
         )
 
+    @property
+    def jump_target(self) -> str | None:
+        """Active anchor jump target within note markdown."""
+        return self.jump_target_val
+
     def set_editing_mode(self, is_editing: bool) -> None:
         """Switch between Display Mode and Edit Mode."""
         self.is_editing = is_editing
