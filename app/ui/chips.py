@@ -78,3 +78,41 @@ class FolderChip(ft.Container):
             theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
         )
 
+
+class PlatformChip(ft.Container):
+    """Muted, informational chip identifying source platform (non-interactive)."""
+
+    def __init__(
+        self,
+        platform: str,
+        *,
+        prefix: str = "",
+        theme_mode: ft.ThemeMode | str = ft.ThemeMode.LIGHT,
+    ) -> None:
+        self.platform = platform
+        self.prefix = prefix
+        palette = get_palette(theme_mode)
+
+        display_text = f"{prefix}{platform}" if prefix else platform
+
+        text_control = ft.Text(
+            value=display_text,
+            size=FONT_SIZE_MICRO,
+            weight=ft.FontWeight.W_500,
+            color=palette["muted"],
+            font_family=FONT_FAMILY_UI,
+            no_wrap=True,
+        )
+
+        super().__init__(
+            content=text_control,
+            bgcolor="transparent",
+            border=None,
+            padding=ft.Padding.symmetric(horizontal=SPACING_10, vertical=SPACING_10),
+            alignment=ft.Alignment(0, 0),
+            height=MIN_TOUCH_TARGET,
+            tooltip=f"Source: {platform}",
+            theme_mode=theme_mode if isinstance(theme_mode, ft.ThemeMode) else None,
+        )
+
+
