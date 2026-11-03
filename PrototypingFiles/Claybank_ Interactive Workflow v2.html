@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claybank: Interactive Workflow v2</title>
+<style>
+:root{--bg:#FAF9F5;--card:#fff;--ink:#1F1E1D;--mut:#6B6860;--line:#E1DCCF;--acc:#B5532F;--accfg:#fff;--accbg:#F6E4DA;--accink:#8A3E22;--ok:#E3F0EA;--okink:#2E5E50;--chip:#EEEBE2;--chipink:#4A4842;--page:#EFEBE1;--own:#2E7D5B;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1C1B19;--card:#262421;--ink:#F2EFE8;--mut:#A8A398;--line:#3A3732;--acc:#E08A64;--accfg:#1F1E1D;--accbg:#3A2A22;--accink:#F0B79C;--ok:#1F3A31;--okink:#9FD3BF;--chip:#2F2D29;--chipink:#CFCABF;--page:#121110}}
+:root[data-theme="dark"]{--bg:#1C1B19;--card:#262421;--ink:#F2EFE8;--mut:#A8A398;--line:#3A3732;--acc:#E08A64;--accfg:#1F1E1D;--accbg:#3A2A22;--accink:#F0B79C;--ok:#1F3A31;--okink:#9FD3BF;--chip:#2F2D29;--chipink:#CFCABF;--page:#121110}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--ink);font-family:system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:20px;max-width:1100px;margin:0 auto}
+#box{flex:none}
+#phone{width:390px;height:844px;position:relative;background:var(--bg);border-radius:36px;border:1px solid var(--line);overflow:hidden;transform-origin:top left;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.panel{flex:1 1 320px;max-width:460px;display:flex;flex-direction:column;gap:14px}
+.panel h1{margin:0;font-size:24px}
+.cap{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.cap b{font-size:17px}.cap span{color:var(--mut);font-size:14px}
+.ctl{display:flex;gap:8px}
+.ctl button,.steps button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;font-weight:600}
+.ctl .pp{background:var(--acc);color:var(--accfg);border-color:var(--acc);flex:1}
+.prog{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .4s}
+.steps{display:flex;flex-wrap:wrap;gap:6px}.steps button{padding:6px 10px;font-size:12px;border-radius:999px;color:var(--mut)}
+.steps .on{background:var(--accbg);color:var(--accink);border-color:var(--acc);font-weight:700}
+.dotc{display:inline-block;width:7px;height:7px;border-radius:4px;background:var(--own);margin-left:5px;vertical-align:middle}
+.changes{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.changes h3{margin:0 0 4px;font-size:14px}
+.chg{background:none;border:0;text-align:left;padding:6px 4px;border-radius:8px;font-size:13px;color:var(--ink);display:flex;gap:8px;align-items:baseline}
+.chg:hover{background:var(--chip)}
+.chg b{color:var(--accink);font-weight:700;flex:none;font-size:12px}
+.note{font-size:12px;color:var(--mut)}
+.scr{position:absolute;inset:0;padding:28px 18px 14px;display:flex;flex-direction:column;gap:12px;opacity:0;visibility:hidden;transform:translateX(24px);transition:opacity .4s,transform .4s,visibility 0s linear .4s}
+.scr.left{transform:translateX(-24px)}
+.scr.on{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ic.f{fill:currentColor;stroke:none}.ic.s{width:18px;height:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.06);text-align:left;width:100%}
+.r{display:flex;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:4px}
+.h{font-size:26px;font-weight:700;margin:0}.t{font-size:15px;font-weight:650}.s{font-size:13px;color:var(--mut)}
+.crumb{font-size:12px;color:var(--mut);display:flex;gap:6px;align-items:center}.crumb b{color:var(--ink)}.crumb button{background:none;border:0;padding:0;display:flex;color:var(--ink)}
+.pill{background:var(--ok);color:var(--okink);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:650;border:0}
+.chip{background:var(--accbg);color:var(--accink);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;border:0;white-space:nowrap}
+.chip.n{background:var(--chip);color:var(--chipink)}
+.chip.outl{background:transparent;border:1px solid var(--acc);color:var(--accink)}
+.chip.tagc{background:var(--chip);color:var(--chipink);font-weight:650}
+.chip.mutd{background:transparent;border:0;color:var(--mut);font-weight:550;padding:3px 4px}
+.chip.jump{background:transparent;border:1px solid var(--line);color:var(--ink);font-weight:650}
+.th{width:68px;height:68px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff}
+.g1{background:linear-gradient(135deg,#E9A27F,#B5532F)}.g2{background:linear-gradient(135deg,#8FB5A6,#3F7766)}.g3{background:linear-gradient(135deg,#9DB0D6,#4A5F97)}.g4{background:linear-gradient(135deg,#D6B36A,#9A7424)}
+.btn{border:0;border-radius:14px;padding:14px;text-align:center;font-weight:650;background:var(--acc);color:var(--accfg);width:100%}.btn.alt{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.bar{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:14px;color:var(--mut);display:flex;gap:10px;align-items:center;width:100%;text-align:left}
+.ban{background:var(--accbg);border-radius:14px;padding:12px}
+.nav{margin-top:auto;display:flex;justify-content:space-around;border-top:1px solid var(--line);padding-top:10px}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;font-size:11px;color:var(--mut)}.nav .on{color:var(--acc);font-weight:700}
+.pg{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}.pg i{display:block;height:100%;width:0;background:var(--acc)}
+.row{display:flex;gap:10px;overflow:hidden}.tile{width:150px;flex:none;padding:8px;display:flex;flex-direction:column;gap:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.c4{display:grid;grid-template-columns:1fr 1fr;gap:3px;height:72px;border-radius:10px;overflow:hidden}
+.tg{width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;border:0;flex:none;margin-left:auto}.tg i{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:9px;background:#fff;transition:left .2s}.tg.on{background:var(--acc)}.tg.on i{left:19px}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px;transform:translateY(120%);transition:transform .5s cubic-bezier(.2,.8,.2,1);z-index:20}.sheet.up{transform:none}
+.menu{position:absolute;top:26px;right:26px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;min-width:190px;z-index:25;visibility:hidden;opacity:0;transition:opacity .2s}
+.menu.up{visibility:visible;opacity:1}
+.menu button{background:none;border:0;text-align:left;padding:10px 14px;font-size:14px;font-weight:600}
+.menu button:hover{background:var(--chip)}
+.st{transition:all .3s}.st.done{background:var(--ok);color:var(--okink)}
+.fl{animation:fl .6s both}.on .fl:nth-child(2){animation-delay:.2s}.on .fl:nth-child(3){animation-delay:.4s}
+@keyframes fl{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.show{animation:pop .45s both}.hid{display:none}.ta{flex:1;resize:none;border:1px solid var(--acc);border-radius:12px;background:var(--card);color:var(--ink);font:12.5px/1.5 ui-monospace,monospace;padding:12px}.md{flex:1;min-height:0;overflow-y:auto}.fade{opacity:0;transition:opacity .5s}.fade.show{opacity:1;animation:none}
+.caret{display:inline-block;width:2px;height:16px;background:var(--acc);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
+.dots i{display:inline-block;width:7px;height:7px;border-radius:4px;background:var(--mut);margin-right:4px;animation:bl .8s infinite}
+.snack{position:absolute;left:12px;right:12px;bottom:16px;background:var(--ink);color:var(--bg);border-radius:14px;padding:10px 14px;display:flex;gap:10px;align-items:center;transform:translateY(140%);transition:transform .3s;z-index:40}
+.snack.up{transform:none}
+.snack .sn-tx{flex:1;font-size:13.5px;font-weight:600}
+.snack button{background:none;border:1px solid color-mix(in srgb,var(--bg) 45%,transparent);color:inherit;border-radius:10px;padding:5px 12px;font-weight:700}
+.live{background:none;border:0;padding:0;color:var(--accink);font-weight:600;text-decoration:underline dotted var(--mut);cursor:pointer;pointer-events:auto}
+.match{font-size:13px;color:var(--mut)}
+.frags{font-style:italic;color:var(--ink)}
+.sec{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.defb{border:1px dashed var(--line);border-radius:12px;padding:10px;font-size:12px;color:var(--mut);text-align:center}
+.ck{display:flex;gap:8px;align-items:center;background:none;border:0;padding:3px 0;font-size:13px;color:var(--mut)}.ck i{width:16px;height:16px;border:2px solid var(--mut);border-radius:5px}.ck.on i{background:var(--acc);border-color:var(--acc)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2-8h12l2 8v6H4zM4 13h5l1 2h4l1-2h5"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l11 6-11 6z"/></symbol>
+</defs></svg>
+<main class="app">
+<div id="box"><div id="phone">
+
+<!-- ===================== 1 · SPLASH ===================== -->
+<section class="scr" id="s0" style="justify-content:center;align-items:center;text-align:center;background:linear-gradient(160deg,#E9A27F,#B5532F 60%,#7A331A);color:#fff">
+<div style="width:96px;height:96px;border-radius:26px;background:rgba(255,255,255,.2);border:2px solid #fff;display:flex;align-items:center;justify-content:center"><svg class="ic" style="width:48px;height:48px"><use href="#i-folder"/></svg></div>
+<div style="font-size:40px;font-weight:750">Claybank</div><div>Share it now. Find it later.</div>
+<div style="width:200px;height:6px;border-radius:3px;background:rgba(255,255,255,.3);overflow:hidden;margin-top:30px"><i id="b0" style="display:block;height:100%;width:0;background:#fff;transition:width 1.8s linear"></i></div><div style="font-size:13px">Opening your library...</div>
+</section>
+
+<!-- ===================== 2 · ONBOARDING ===================== -->
+<section class="scr" id="s1">
+<div class="r"><button class="s" style="background:none;border:0" data-go="0">Back</button><button class="s" style="margin-left:auto;background:none;border:0" data-go="2">Skip</button></div>
+<div class="pg"><i style="width:33%"></i></div><div class="s">Step 1 of 3</div>
+<div style="height:340px;border-radius:24px;background:linear-gradient(160deg,var(--accbg),#E9A27F);padding:30px 24px;display:flex;flex-direction:column;gap:18px">
+<div class="card r fl" style="width:230px"><div class="th g2" style="width:44px;height:44px"></div><div class="t">Reel saved</div></div>
+<div class="card r fl" style="width:230px;margin-left:70px"><div class="th g3" style="width:44px;height:44px"></div><div class="t">Short saved</div></div>
+<div class="card r fl" style="width:230px"><div class="th g4" style="width:44px;height:44px"></div><div class="t">Post saved</div></div></div>
+<h1 class="h">Share to save</h1><div class="s" style="font-size:15px">In Instagram, YouTube or Facebook, tap Share, then choose Claybank. That is all.</div>
+<button class="btn" style="margin-top:auto" data-go="2">Next</button>
+</section>
+
+<!-- deferred in v1, kept visually for the future auth design (adr 0006) -->
+<section class="scr" id="s2">
+<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px;text-align:center"><div class="th g1" style="width:64px;height:64px;border-radius:18px"><svg class="ic" style="width:32px;height:32px"><use href="#i-folder"/></svg></div><h1 class="h">Welcome to Claybank</h1><div class="s">Sign in to keep your saves safe.</div></div>
+<div class="defb">Deferred screen — not in the hackathon tour (dev token instead, adr/0006). Kept from v1 for the future auth design.</div>
+<div style="display:flex;background:var(--chip);border-radius:14px;padding:4px"><span style="flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--card);font-weight:650;font-size:14px">Sign in</span><span class="s" style="flex:1;text-align:center;padding:10px">Create account</span></div>
+<button class="btn alt" data-go="2">Continue with Google</button><button class="btn alt" data-go="2">Continue with Apple</button>
+<div class="r s"><i style="flex:1;height:1px;background:var(--line)"></i>or<i style="flex:1;height:1px;background:var(--line)"></i></div>
+<div class="col"><span class="s">Email</span><div class="bar">you@example.com</div></div>
+<div class="col"><span class="s">Password</span><div class="bar">........<span style="margin-left:auto;color:var(--acc);font-weight:600">Show</span></div></div>
+<button class="btn" data-go="2">Sign in</button>
+<div class="s" style="text-align:center;margin-top:auto">By continuing you agree to the Terms and Privacy Policy.</div>
+</section>
+
+<!-- ===================== 3 · INBOX (home) ===================== -->
+<section class="scr" id="s3">
+<div class="r"><h1 class="h">Inbox</h1><span class="pill" id="pl">2 processing</span></div>
+<button class="bar" data-go="10"><svg class="ic s"><use href="#i-search"/></svg>Search your saves</button>
+<div class="ban r" id="qk">
+<div class="col"><div class="t">3 items need a quick check</div><div class="s">Confirm in one tap, change, or ignore. Nothing is filed silently.</div></div>
+<button class="chip" id="rv" aria-expanded="false" style="margin-left:auto">Review</button>
+</div>
+<div class="card col hid" id="rq" style="gap:10px">
+<div class="sec" style="margin-bottom:-4px">Needs a quick check</div>
+<div class="r" id="r1"><div class="th g1" style="width:44px;height:44px;border-radius:10px"><svg class="ic f" style="width:18px"><use href="#i-play"/></svg></div>
+<div class="col"><div class="t" style="font-size:14px">One pot pasta</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl accf" data-file="Cooking / Pasta">→ Cooking / Pasta</button><span class="chip mutd">· 0.92</span><button class="chip n" data-dismiss="r1">Ignore</button></div></div></div>
+<div class="r" id="r2"><div class="th g3" style="width:44px;height:44px;border-radius:10px"></div>
+<div class="col"><div class="t" style="font-size:14px">Sous vide, explained</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl" data-file="Study">→ Study</button><span class="chip mutd">· 0.71</span><button class="chip n" data-dismiss="r2">Ignore</button></div></div></div>
+<div class="r" id="r3"><div class="th g4" style="width:44px;height:44px;border-radius:10px"></div>
+<div class="col"><div class="t" style="font-size:14px">Notion study setup</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl" data-file="Study">→ Study</button><span class="chip mutd">· 0.66</span><button class="chip n" data-dismiss="r3">Ignore</button></div></div></div>
+</div>
+<div class="sec">Recently added</div>
+<div class="row">
+<button class="card tile" data-go="7"><div class="th g1" style="width:auto;height:56px"><svg class="ic f"><use href="#i-play"/></svg></div><div class="t" style="font-size:13px">Creamy garlic pasta</div><div class="s">0:58 · yesterday · Cooking/Pasta</div></button>
+<button class="card tile" data-go="7"><div class="th g3" style="width:auto;height:56px"></div><div class="t" style="font-size:13px">Sous vide, explained</div><div class="s">Article · 2d ago</div></button>
+<button class="card tile" data-go="7"><div class="th g2" style="width:auto;height:56px"><svg class="ic f"><use href="#i-play"/></svg></div><div class="t" style="font-size:13px">Desk stretches</div><div class="s">2:10 · 3d ago · Fitness</div></button></div>
+<div class="card col hid" id="nc" style="gap:6px"><div class="r"><div class="t">New: Creamy garlic pasta</div><span class="s" style="margin-left:auto" id="nt">Transcribing</span></div><div class="pg"><i id="nb" style="transition:width 2.2s linear"></i></div></div>
+<button data-go="3" aria-label="Add link" style="position:absolute;right:18px;bottom:84px;width:56px;height:56px;border-radius:18px;border:0;background:var(--acc);color:var(--accfg);font-size:30px;box-shadow:0 4px 10px rgba(0,0,0,.3)">+</button>
+<nav class="nav" data-tab="0"></nav>
+</section>
+
+<!-- ===================== 6(x) · CAPTURE — FLOATING BUBBLE (post-hackathon) ===================== -->
+<section class="scr" id="s4" style="background:linear-gradient(170deg,#3a2f2a,#111);color:#fff">
+<div class="r"><b>Instagram</b><span class="s" style="margin-left:auto;color:#ddd">Reel</span></div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:18px">Creamy garlic pasta in 20 min<br><span class="s" style="color:#ddd">Copy the link, then tap the Claybank bubble</span></div>
+<div style="position:absolute;right:10px;top:330px;width:52px;height:52px;border-radius:26px;background:var(--acc);color:var(--accfg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:12px;font-weight:700">CB</div><div class="sheet" id="sh" style="color:var(--ink)">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="r"><div style="width:44px;height:44px;border-radius:22px;background:#3F7766;color:#fff;display:flex;align-items:center;justify-content:center"><svg class="ic"><use href="#i-check"/></svg></div><div class="col"><div class="t" style="font-size:18px">Saved to Claybank</div><div class="s">instagram.com/reel/Cx9...</div></div></div>
+<div class="s">Save in (one tap)</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl">→ Cooking / Pasta</button><button class="chip tagc">#fitness</button><button class="chip tagc">#study</button></div>
+<div class="bar">Note: why do you want this?</div>
+<div class="r" style="gap:6px"><span class="chip n st" id="t1">Fetched</span><span class="chip n st" id="t2">Transcribing</span><span class="chip n st" id="t3">Sorting</span></div>
+<button class="btn" data-go="6">Done</button><button class="btn alt" data-go="7">Open in app</button></div>
+</section>
+
+<!-- ===================== 8 · ITEM NOTE ===================== -->
+<section class="scr" id="s5">
+<div class="r" id="cr1">
+<button class="crumb" data-go="9" aria-label="Back"><svg class="ic s"><use href="#i-back"/></svg></button>
+<span class="crumb" style="flex:1"><span>Folders</span>/<span id="crb">Cooking</span>/<b id="cra">Pasta</b><button class="live" data-live="mv" id="folderLive" style="margin-left:6px">↩ move</button></span>
+<button class="chip n" id="eb" style="flex:none">Edit</button>
+<button class="chip n" id="mb" style="flex:none" aria-label="More options">⋯</button>
+<div class="menu" id="menu">
+<button data-menu="mv">Move to folder…</button>
+<button data-menu="tg">Edit tags…</button>
+<button data-menu="rp">Reprocess (metadata &amp; transcript only)</button>
+<button data-menu="dl" style="color:var(--accink)">Delete…</button>
+</div>
+</div>
+<div class="r hid" id="cf" style="border:1px solid var(--line);border-radius:12px;padding:10px">
+<span class="s" style="flex:1" id="cft">Delete this note and its save?</span>
+<button class="chip" id="cfd" style="flex:none">Delete</button>
+<button class="chip n" id="cfc" style="flex:none">Cancel</button>
+</div>
+<div id="rd" class="md"></div>
+<div id="ed" style="display:none;flex:1;min-height:0;flex-direction:column;gap:8px"><div class="r" style="gap:6px"><button class="chip n" data-ins="h">H</button><button class="chip n" data-ins="b"><b>B</b></button><button class="chip n" data-ins="u">List</button><button class="chip n" data-ins="t">Task</button><button class="chip n" data-ins="l">Link</button></div><textarea id="ta" class="ta" aria-label="Edit note in Markdown"></textarea></div>
+<button class="btn" id="ob">Open original video</button>
+<!-- filing sheet: searchable-ish folder chips + done, over the note -->
+<div class="sheet" id="mvs">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="t" style="font-size:17px">Move to folder</div>
+<div class="r" style="gap:6px;flex-wrap:wrap" id="mvopts">
+<button class="chip outl on" data-mv="Cooking / Pasta">Cooking / Pasta</button>
+<button class="chip n" data-mv="Fitness">Fitness</button>
+<button class="chip n" data-mv="Study">Study</button>
+<button class="chip n" data-mv="Cooking / Baking">Cooking / Baking</button>
+</div>
+<button class="btn" id="mvd">Done</button>
+</div>
+<div class="sheet" id="tgs">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="t" style="font-size:17px">Tags</div>
+<div class="r" style="gap:6px;flex-wrap:wrap" id="tglist"></div>
+<div class="r" style="gap:8px"><input id="tgin" style="flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 10px;font:inherit;background:var(--bg);color:var(--ink)" aria-label="New tag" placeholder="add a tag…"><button class="chip n" id="tgadd">Add</button></div>
+<button class="btn" id="tgd">Done</button>
+</div>
+</section>
+
+<!-- ===================== 10 · FOLDERS ===================== -->
+<section class="scr" id="s6">
+<div class="crumb"><b>Library</b></div>
+<div class="r"><h1 class="h">Folders</h1><span class="chip" style="margin-left:auto">+ New</span></div>
+<div class="r" style="gap:6px"><span class="chip">Recent</span><span class="chip n">A to Z</span><span class="chip n">Most saved</span></div>
+<div class="grid">
+<button class="card col" style="gap:6px" data-go="9"><div class="c4"><i class="g1"></i><i class="g4"></i><i class="g2"></i><i class="g1"></i></div><div class="t">Cooking</div><div class="s">24 saves · today</div></button>
+<button class="card col" style="gap:6px" data-go="9"><div class="c4"><i class="g2"></i><i class="g3"></i><i class="g2"></i><i class="g4"></i></div><div class="t">Fitness</div><div class="s">13 saves · 2d ago</div></button>
+<button class="card col" style="gap:6px" data-go="9"><div class="c4"><i class="g3"></i><i class="g3"></i><i class="g1"></i><i class="g4"></i></div><div class="t">Study</div><div class="s">18 saves · 5d ago</div></button></div>
+<div class="s">Folders are for projects, not topics — they appear when you need them. Long press to rename or merge; undo always shows.</div>
+<p class="note">There is no “Unsorted” folder: unfiled saves live in the Inbox, which empties itself.</p>
+<nav class="nav" data-tab="1"></nav>
+</section>
+
+<!-- ===================== 11 · FOLDER VIEW ===================== -->
+<section class="scr" id="s7">
+<div class="crumb"><button data-go="8" aria-label="Back"><svg class="ic s"><use href="#i-back"/></svg></button><span>Folders</span>/<b>Cooking</b></div>
+<div class="r"><h1 class="h">Cooking</h1><span class="s" style="margin-left:auto">24 saves</span></div>
+<div class="col" style="gap:6px">
+<div class="sec">Folders</div>
+<div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl" data-go="9">Pasta 6 ›</button><button class="chip outl" data-go="9">Baking 9 ›</button><button class="chip outl" data-go="9">Quick 4 ›</button></div>
+</div>
+<div class="col" style="gap:6px">
+<div class="sec">Tags</div>
+<div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip tagc" data-go="9">#recipe</button><button class="chip tagc" data-go="9">#pasta</button><button class="chip tagc" data-go="9">#weeknight</button><button class="chip tagc" data-go="9">#sourdough</button></div>
+</div>
+<button class="card r" data-go="7"><div class="th g1"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Creamy garlic pasta</div><div class="s">Fast garlic cream sauce.</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip mutd">Instagram</span><span class="chip tagc">#pasta</span></div></div></button>
+<button class="card r" data-go="7"><div class="th g2"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">One pot pasta</div><div class="s">All in one pan.</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip mutd">YouTube</span><span class="chip tagc">#weeknight</span></div></div></button>
+<button class="card r" data-go="7"><div class="th g4"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">No knead bread</div><div class="s">Overnight dough.</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip mutd">YouTube</span><span class="chip tagc">#sourdough</span></div></div></button>
+<nav class="nav" data-tab="1"></nav>
+</section>
+
+<!-- ===================== 12 · SEARCH ===================== -->
+<section class="scr" id="s8">
+<button class="card r" style="border-color:var(--acc)" data-go="11"><svg class="ic s" style="color:var(--acc)"><use href="#i-chat"/></svg><span class="t" style="font-size:14px">Ask your library</span><span class="s" style="margin-left:auto">folder or everything →</span></button>
+<div class="bar" style="border-color:var(--acc);color:var(--ink)"><svg class="ic s"><use href="#i-search"/></svg><span id="q"></span><span class="caret"></span></div>
+<div class="s">Recent</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip n">back pain stretches</span><span class="chip n">notion template</span></div>
+<div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip">All</span><span class="chip n">YouTube</span><span class="chip n">Instagram</span><span class="chip n">This month</span></div>
+<div id="res" class="fade" style="display:flex;flex-direction:column;gap:12px"><div class="s">3 results · keyword + meaning · every result explains itself</div>
+<button class="card r" data-go="7"><div class="th g1"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Creamy garlic pasta</div><div class="match">Match in transcript · <span class="frags">“add cream”</span></div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip jump">▶ 0:42</span><span class="chip outl">Cooking / Pasta</span><span class="chip mutd">0.98</span></div></div></button>
+<button class="card r" data-go="7"><div class="th g2"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">One pot pasta</div><div class="match">Match in summary</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip outl">Cooking</span><span class="chip mutd">0.81</span></div></div></button>
+<button class="card r" data-go="7"><div class="th g4"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Sauce basics</div><div class="match">Match in tag</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip tagc">#sauce</span><span class="chip mutd">0.64</span></div></div></button></div>
+<nav class="nav" data-tab="2"></nav>
+</section>
+
+<!-- ===================== 13 · ASK (opened from Search / folder ⋯) ===================== -->
+<section class="scr" id="s9">
+<div class="r"><button class="crumb" data-go="10" aria-label="Back"><svg class="ic s"><use href="#i-back"/></svg></button><h1 class="h" style="font-size:22px">Ask</h1><span class="chip" style="margin-left:auto">Scope: Cooking</span></div>
+<div id="u" class="hid" style="align-self:flex-end;max-width:75%;background:var(--acc);color:var(--accfg);border-radius:18px 18px 4px 18px;padding:12px;font-size:14px">What should I cook this week?</div>
+<div id="dt" class="card hid dots" style="width:70px;border-radius:18px"><i></i><i></i><i></i></div>
+<div id="ai" class="card col hid" style="max-width:85%;border-radius:18px 18px 18px 4px;gap:8px;width:auto"><div style="font-size:14px">Try the garlic pasta first. It takes 20 minutes.</div><div class="s">Based on 3 saves · every answer cites what it used</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip tagc" data-go="7">→ Creamy garlic pasta</button><button class="chip tagc" data-go="7">→ One pot pasta</button></div></div>
+<div class="s" style="margin-top:auto">Try asking</div><div class="r" style="gap:6px;flex-wrap:wrap"><span class="chip n">Summarize this week</span><span class="chip n">What did I never open?</span></div>
+<div class="bar">Type a question...<span class="chip" style="margin-left:auto">Send</span></div>
+</section>
+
+<!-- ===================== 14 · SETTINGS ===================== -->
+<section class="scr" id="s10">
+<h1 class="h">Settings</h1>
+<div class="card r"><div class="th g1" style="width:44px;height:44px;border-radius:22px"></div><div class="col"><div class="t">Md. Shefayet</div><div class="s">Last backup: just now</div></div><span class="pill" style="margin-left:auto">Synced</span></div>
+<div class="card r" style="flex-direction:column;align-items:flex-start;gap:4px"><div class="r" style="width:100%"><span class="t">Chat model</span><span class="s" style="margin-left:auto">Cloud | Local</span></div><span class="s">Notes are always generated in the cloud. Chat can run on this device.</span></div>
+<div class="card r"><span class="t">Local chat model</span><span class="r" style="margin-left:auto;gap:6px"><button class="chip outl" id="mm1">MiniCPM5-2B · 1.56 GB</button><button class="chip n" id="mm2">Qwen3-1.7B · 1.1 GB</button></span></div>
+<div class="card r"><span class="t">Storage used</span><span class="s" style="margin-left:auto">Library 4 MB · Local model 1.1 GB</span></div>
+<div class="card r"><span class="t">Auto-sort new saves</span><button class="tg on" role="switch" aria-checked="true" aria-label="Auto-sort"><i></i></button></div>
+<div class="card r"><span class="t">Weekly digest of unopened saves</span><button class="tg on" role="switch" aria-checked="true" aria-label="Weekly digest"><i></i></button></div>
+<div class="card r"><span class="t">Wi-Fi only processing</span><button class="tg" role="switch" aria-checked="false" aria-label="Wi-Fi only"><i></i></button></div>
+<div class="card r"><span class="t">Quick-save notification</span><button class="tg on" role="switch" aria-checked="true" aria-label="Quick-save notification"><i></i></button></div>
+<div class="ban s">Privacy: videos are never saved. Cloud AI gets the transcript and metadata only.</div>
+<nav class="nav" data-tab="3"></nav>
+</section>
+
+<!-- ===================== 5(x) · ADD LINK (guaranteed demo path) ===================== -->
+<section class="scr" id="s11" style="background:linear-gradient(170deg,#6b5d54,#2a2623)">
+<div class="t" style="color:#fff;font-size:22px">Inbox</div>
+<div class="sheet" id="sh2" style="color:var(--ink)">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="t" style="font-size:18px">Add a link</div>
+<div class="bar" style="border-color:var(--acc);color:var(--ink)"><span id="lk"></span><button class="chip" style="margin-left:auto">Paste</button></div>
+<div class="ban r"><div class="col"><div class="t">Link found in clipboard</div><div class="s">instagram.com/reel/Cx9...</div></div><button class="chip" style="margin-left:auto">Use it</button></div>
+<div class="s">Save in (one tap)</div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="chip outl">→ Cooking / Pasta</button><button class="chip tagc">#fitness</button><button class="chip tagc">#study</button></div>
+<div class="bar">Note: why do you want this?</div>
+<button class="btn" data-go="6">Save link</button><button class="btn alt" data-go="2">Cancel</button></div>
+</section>
+
+<!-- ===================== 7(x) · CAPTURE — NOTIFICATION (spike-gated, in scope) ===================== -->
+<section class="scr" id="s12" style="background:linear-gradient(180deg,#2B2A28,#1A1918);color:#fff">
+<div class="r"><b style="font-size:20px">9:41</b><span style="margin-left:auto;font-size:13px;color:#ddd">Fri, 31 Oct</span></div>
+<div class="r"><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i><i style="flex:1;height:52px;border-radius:26px;background:#B5532F"></i><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i></div>
+<div style="font-size:13px;color:#ddd;margin-top:8px">Notifications <span class="chip mutd" style="color:#ddd;border:1px solid rgba(255,255,255,.25)">spike-gated · in scope</span></div>
+<div class="card col" style="background:#3A3835;border-color:#3A3835;color:#fff;gap:8px"><div class="r" style="font-size:12px;color:#ddd"><b style="color:#fff">Claybank</b>· now</div><div class="t">Save a link</div><div style="font-size:13px;color:#ddd">Copy a link, then tap Paste and save. Android opens the app first — clipboard reads there, not in the background.</div><div class="r" style="gap:8px"><button class="chip" data-go="3">Paste and save</button><button class="chip n" data-go="2">Open app</button></div></div>
+<div id="n2" class="card col hid" style="background:#3A3835;border-color:#3A3835;color:#fff;gap:8px"><div class="r" style="font-size:12px;color:#ddd"><b style="color:#fff">Claybank</b>· now</div><div class="t">Saving: Creamy garlic pasta</div><div style="font-size:13px;color:#ddd">Step 2 of 3: Transcribing</div><div class="pg"><i id="nb2"></i></div></div>
+</section>
+
+<div class="snack" id="sn" role="status"><span class="sn-tx" id="snt">Saved</span><button class="hid" id="snu">Undo</button></div>
+
+</div></div>
+
+<aside class="panel">
+<h1>Claybank workflow <span style="font-size:14px;color:var(--mut)">· v2</span></h1>
+<div class="cap"><span id="cn">Step 1 of 13</span><b id="ct2"></b><span id="cd"></span><span id="cg" style="color:var(--acc);font-weight:650"></span></div>
+<div class="prog"><i id="pr"></i></div>
+<div class="ctl"><button id="pv">Back</button><button class="pp" id="pp">Pause</button><button id="nx">Next</button></div>
+<div class="steps" id="sl"></div>
+<div class="changes">
+<h3>What changed from v1</h3>
+<button class="chg" data-go="2"><b>3</b>Inbox got one review surface with undo; resume row, suggestion banner and dupes are gone</button>
+<button class="chg" data-go="3"><b>4</b>Nav is 4 tabs — Ask folds into Search, not its own tab</button>
+<button class="chg" data-go="4"><b>5</b>Notification capture promoted: tap → app opens into a pre-filled sheet (Android 10+ clipboard rule)</button>
+<button class="chg" data-go="5"><b>6</b>Floating bubble explicitly marked post-hackathon</button>
+<button class="chg" data-go="7"><b>8</b>Note: fact-only properties, folder &amp; tags are live controls, ⋯ menu with delete confirm</button>
+<button class="chg" data-go="8"><b>9</b>Folders grid: no “Unsorted” card — the Inbox is that state</button>
+<button class="chg" data-go="9"><b>10</b>Folder view: sub-folder chips drill, tags row filters, no resume banner</button>
+<button class="chg" data-go="10"><b>11</b>Search: match reasons as text + jump targets; Ask opens from here</button>
+<button class="chg" data-go="11"><b>12</b>Ask answers always carry citation chips</button>
+<button class="chg" data-go="12"><b>13</b>Settings: Chat model Cloud|Local + model picker; storage split into library and model</button>
+</div>
+<div class="note">Green dots mark changed screens. Tap anything inside the phone to try it; the tour pauses when you do. Undo works on every filing action.</div>
+</aside>
+</main>
+<script>
+const SC = [0, 1, 3, 11, 12, 4, 3, 5, 6, 7, 8, 9, 10]; // 13 steps, no sign-in
+const HOLD = [2400, 2800, 3400, 5400, 5000, 5000, 3400, 3800, 3000, 3000, 4600, 5200, 3000];
+const C = [
+ ["Splash", "Brand moment while the library opens.", "Status · Aesthetic"],
+ ["Onboarding", "Three short steps teach one habit: share to save. Skip is always visible.", "Status · Memory"],
+ ["Inbox", "Needs a quick check + recently added. Search is the other half of this screen.", "Changed · Status"],
+ ["Add link, in-app", "The guaranteed demo path. Clipboard link offered, a folder suggested, then save.", "Changed · Memory"],
+ ["Notification capture", "Spike-gated, in scope: the tap foregrounds the app into a pre-filled sheet — clipboard is read there, since Android 10+ denies background reads.", "Changed · Memory"],
+ ["Floating bubble", "Post-hackathon. Needs overlay permission + a custom Flet extension.", "Deferred"],
+ ["Processing", "The new save appears in the Inbox at once; stages stream until it is sorted.", "Changed · Status"],
+ ["Item", "One note per save, like Obsidian. Fact-only properties; folder and tags are live controls. No video is stored.", "Changed · Memory"],
+ ["Folders", "The only container, for projects not topics. No Unsorted card — the Inbox is that state.", "Changed · Status"],
+ ["Folder view", "Child folders drill down; tags filter in place. No resume banner exists.", "Changed · Memory"],
+ ["Search", "Results explain themselves: match reason + fragment + jump target. Ask opens from here.", "Changed · Emulate"],
+ ["Ask", "Folder-scoped answers that cite the saves they used. Opened from Search or a folder's overflow, not a tab.", "Changed · Memory"],
+ ["Settings", "Chat model Cloud|Local + local model picker. Storage split into library and model.", "Changed · Status"]
+];
+const CHANGED = new Set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+const $ = id => document.getElementById(id);
+const tabs = [["inbox", "Inbox", 2], ["folder", "Folders", 8], ["search", "Search", 10], ["gear", "Settings", 12]];
+document.querySelectorAll(".nav").forEach(n => {
+  const a = +n.dataset.tab;
+  n.innerHTML = tabs.map((t, i) => `<button data-go="${t[2]}" class="${i == a ? "on" : ""}"${i == a ? ' aria-current="page"' : ""}><svg class="ic"><use href="#i-${t[0]}"/></svg>${t[1]}</button>`).join("");
+});
+$("sl").innerHTML = C.map((c, i) => `<button data-go="${i}" class="stbtn">${i + 1} ${c[0]}${CHANGED.has(i) ? '<span class="dotc" aria-label="changed screen"></span>' : ""}</button>`).join("");
+let cur = -1, playing = !matchMedia("(prefers-reduced-motion: reduce)").matches, T = [], tm;
+const later = (f, ms) => T.push(setTimeout(f, ms));
+function fit() {
+  const s = Math.min(1, (innerWidth - 40) / 390, (innerHeight * (innerWidth < 760 ? .75 : .94)) / 844);
+  $("box").style.width = 390 * s + "px";
+  $("box").style.height = 844 * s + "px";
+  $("phone").style.transform = `scale(${s})`;
+}
+let editing = false, deleted = false;
+const SCREENS = SC.map(n => $("s" + n));
+function show(i) {
+  const curEl = SCREENS[i]; // s3 is both step 2 (Inbox) and 6 (Processing) — compare by element, not index
+  SCREENS.forEach((el, j) => {
+    el.classList.toggle("on", el === curEl);
+    el.classList.toggle("left", el !== curEl && j < i);
+  });
+}
+function enter(i) {
+  T.forEach(clearTimeout); T = [];
+  if (i == 7 && editing) setEdit(false);
+  if (i == 0) {
+    const b = $("b0"); b.style.transition = "none"; b.style.width = "0"; b.offsetWidth; b.style.transition = "";
+    later(() => b.style.width = "100%", 50);
+  }
+  if (i == 3) {
+    const s = $("sh2"), q = $("lk"), w = "instagram.com/reel/Cx9...";
+    s.classList.remove("up"); q.textContent = "";
+    later(() => s.classList.add("up"), 150);
+    [...w].forEach((_, k) => later(() => q.textContent = w.slice(0, k + 1), 900 + k * 50));
+  }
+  if (i == 4) {
+    const n = $("n2"), b = $("nb2");
+    n.classList.add("hid"); n.classList.remove("show"); b.style.transition = "none"; b.style.width = "0";
+    later(() => { n.classList.remove("hid"); n.classList.add("show"); b.offsetWidth; b.style.transition = "width 2s linear"; b.style.width = "100%"; }, 1800);
+  }
+  if (i == 5) {
+    const s = $("sh");
+    s.classList.remove("up");
+    later(() => s.classList.add("up"), 900);
+  }
+  if (i == 10) {
+    const q = $("q"), res = $("res"), w = "pasta";
+    res.classList.remove("show"); q.textContent = "";
+    [...w].forEach((_, k) => later(() => q.textContent = w.slice(0, k + 1), 500 + k * 140));
+    later(() => res.classList.add("show"), 1500);
+  }
+  if (i == 11) {
+    const u = $("u"), dt = $("dt"), ai = $("ai");
+    [u, dt, ai].forEach(el => { el.classList.add("hid"); el.classList.remove("show"); });
+    later(() => { u.classList.remove("hid"); u.classList.add("show"); }, 500);
+    later(() => { dt.classList.remove("hid"); dt.classList.add("show"); }, 1500);
+    later(() => { dt.classList.add("hid"); ai.classList.remove("hid"); ai.classList.add("show"); }, 3400);
+  }
+  if (i == 6) {
+    const n = $("nc"), b = $("nb");
+    n.classList.remove("hid"); n.classList.add("show");
+    $("nt").textContent = "Transcribing";
+    b.style.transition = "none"; b.style.width = "0"; b.offsetWidth; b.style.transition = "width 2.4s linear"; b.style.width = "100%";
+    later(() => { $("nt").textContent = "Sorting"; }, 2600);
+  }
+}
+// ---------- note renderer (markdown-as-truth; live property controls) ----------
+const SRC = `---
+source: Instagram
+channel: @chefmara
+video_url: instagram.com/reel/Cx9...
+duration: 0:58
+published: 2026-10-03
+saved: 2026-10-28
+folder: Cooking / Pasta
+tags: #recipe #pasta #dinner
+---
+# Creamy garlic pasta
+## Overview
+A 20 minute pasta with a garlic cream sauce. The creator uses five ingredients and one pan.
+## Key points
+- Salt the water well
+- Fry garlic on low heat
+- Add cream last, then pasta water
+## Steps
+- [x] Boil pasta
+- [ ] Fry garlic
+- [ ] Add cream
+## Links mentioned
+- chefmara.example/garlic-pasta (description)
+- shop.example/pan (spoken at 0:12)
+- @chefmara (profile)
+## Transcript
+> 0:08 Start with well salted water.
+> 0:42 Now add the cream...
+## Related
+One pot pasta · Sauce basics`;
+let src = SRC;
+function render(t) {
+  const L = t.replace(/\r/g, "").split("\n"), o = []; let i = 0, fm = "";
+  const esc = x => x.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const A = "color:var(--acc);text-decoration:underline";
+  const inl = x => esc(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\[(.+?)\]\((.+?)\)/g, `<span style="${A}">$1</span>`).replace(/(^|\s)(#[a-z]\w*)/gi, "$1<span style=color:var(--acc) >$2</span>");
+  if (L[0] === "---") {
+    let r = ""; i = 1;
+    for (; i < L.length && L[i] !== "---"; i++) {
+      const k = L[i].indexOf(":"); if (k > 0) {
+        const key = L[i].slice(0, k).trim(), v = L[i].slice(k + 1).trim();
+        if (key === "folder" || key === "tags") {
+          r += `<span style="color:var(--mut)">${esc(key)}</span><button class="live" data-live="${key}" style="text-align:left">${key === "tags" ? inl(v) : inl(v)} ✎</button>`;
+        } else {
+          r += `<span style="color:var(--mut)">${esc(key)}</span><span${key === "video_url" ? ` style="${A}"` : ""}>${inl(v)}</span>`;
+        }
+      }
+    }
+    i++;
+    const liveHint = ` <span style="float:right;color:var(--mut)">folder &amp; tags are editable ✎</span>`;
+    fm = `<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Properties${liveHint}</div><div style="display:grid;grid-template-columns:96px 1fr;gap:3px 8px;font-size:12.5px;padding-bottom:10px;border-bottom:1px solid var(--line)">${r}</div>`;
+  }
+  let ul = [], bq = [];
+  const fl = () => { if (ul.length) { o.push(`<ul style="margin:0;padding-left:20px">${ul.join("")}</ul>`); ul = [] } if (bq.length) { o.push(`<blockquote style="margin:0;padding-left:10px;border-left:3px solid var(--line);color:var(--mut)">${bq.join("<br>")}</blockquote>`); bq = [] } };
+  for (; i < L.length; i++) {
+    const l = L[i]; let x;
+    if (x = l.match(/^- \[( |x)\] (.*)/i)) { fl(); o.push(`<button class="ck${x[1] !== " " ? " on" : ""}"><i></i>${inl(x[2])}</button>`) }
+    else if (x = l.match(/^- (.*)/)) { if (bq.length) fl(); ul.push(`<li>${inl(x[1])}</li>`) }
+    else if (x = l.match(/^> ?(.*)/)) { if (ul.length) fl(); bq.push(inl(x[1])) }
+    else { fl(); if (l.startsWith("## ")) o.push(`<h2 style="font-size:17px;margin:14px 0 4px">${inl(l.slice(3))}</h2>`); else if (l.startsWith("# ")) o.push(`<h1 style="font-size:26px;margin:14px 0 6px">${inl(l.slice(2))}</h1>`); else if (l.trim()) o.push(`<p style="margin:0">${inl(l)}</p>`) }
+  }
+  fl();
+  return `<div style="padding:0 2px 8px;font-size:14px;line-height:1.55;color:var(--ink)">${fm}${o.join("")}</div>`;
+}
+function setEdit(on) {
+  if (on) { playing = false; clearTimeout(tm); $("pp").textContent = "Play"; $("ta").value = src }
+  else { src = $("ta").value; $("rd").innerHTML = render(src) }
+  editing = on;
+  $("rd").classList.toggle("hid", on);
+  $("ed").style.display = on ? "flex" : "none";
+  $("eb").textContent = on ? "Done" : "Edit";
+  $("ob").textContent = on ? "Save note" : "Open original video";
+}
+function ins(k) {
+  const t = $("ta"), s = t.selectionStart, e = t.selectionEnd, v = t.value, ls = v.lastIndexOf("\n", s - 1) + 1;
+  if (k === "b") t.setRangeText("**" + v.slice(s, e) + "**", s, e, "end");
+  else if (k === "l") t.setRangeText("[" + (v.slice(s, e) || "text") + "](https://example.com)", s, e, "end");
+  else t.setRangeText({ h: "## ", u: "- ", t: "- [ ] " }[k], ls, ls, "end");
+  t.focus();
+}
+// ---------- snack (undo on every organization action) ----------
+let snTm, undoFn = null;
+function snack(msg, undo) {
+  const s = $("sn"); clearTimeout(snTm);
+  $("snt").textContent = msg;
+  undoFn = undo || null;
+  $("snu").classList.toggle("hid", !undo);
+  s.classList.add("up");
+  snTm = setTimeout(() => s.classList.remove("up"), 3600);
+}
+// ---------- review queue rows ----------
+document.querySelectorAll("[data-file]").forEach(b => b.addEventListener("click", () => {
+  const chipRow = b.closest(".r"), name = b.dataset.file; // nested .r holds the chips; the item row is the one with an id
+  const row = chipRow && chipRow.id ? chipRow : chipRow.closest(".r[id]");
+  const restore = () => { row.style.display = ""; };
+  row.style.display = "none";
+  snack(`Filed to ${name} · 1 tap, always undoable`, restore);
+}));
+document.querySelectorAll("[data-dismiss]").forEach(b => b.addEventListener("click", () => {
+  const row = document.getElementById(b.dataset.dismiss);
+  const restore = () => { row.style.display = ""; };
+  row.style.display = "none";
+  snack("Left in the Inbox — it is never nagged about again", restore);
+}));
+$("rv").addEventListener("click", () => {
+  const open = $("rq").classList.toggle("hid");
+  $("rv").setAttribute("aria-expanded", String(!open));
+  if (!open) { playing = false; $("pp").textContent = "Play"; }
+});
+// ---------- local model picker ----------
+$("mm1").addEventListener("click", () => { $("mm1").classList.replace("n", "outl"); $("mm2").classList.replace("outl", "n"); snack("MiniCPM5-2B selected · EN/ZH · downloads on first use with a setup state") });
+$("mm2").addEventListener("click", () => { $("mm2").classList.replace("n", "outl"); $("mm1").classList.replace("outl", "n"); snack("Qwen3-1.7B selected · multilingual · downloads on first use with a setup state") });
+// ---------- overflow menu + delete confirm ----------
+$("mb").addEventListener("click", e => { e.stopPropagation(); $("menu").classList.toggle("up") });
+document.addEventListener("click", e => { if (!$("menu").contains(e.target)) $("menu").classList.remove("up") });
+function openMv() { $("mvs").classList.add("up"); $("menu").classList.remove("up") }
+$("mvd").addEventListener("click", () => {
+  const on = document.querySelector("#mvopts .on"), path = on ? on.dataset.mv : "Cooking / Pasta";
+  const prevPath = $("cra").dataset.path || "Cooking / Pasta";
+  $("cra").dataset.path = path;
+  const parts = path.split(" / ");
+  $("crb").textContent = parts.length > 1 ? parts.slice(0, -1).join(" / ") : parts[0];
+  $("cra").textContent = parts[parts.length - 1];
+  src = src.replace(/folder: .*/, "folder: " + path);
+  $("mvs").classList.remove("up");
+  paint();
+  snack("Moved · folder rename/move is a bulk frontmatter rewrite (one save here)", () => {
+    $("cra").dataset.path = prevPath;
+    const p = prevPath.split(" / ");
+    $("crb").textContent = p.length > 1 ? p.slice(0, -1).join(" / ") : p[0];
+    $("cra").textContent = p[p.length - 1];
+    src = src.replace(/folder: .*/, "folder: " + prevPath);
+    paint();
+  });
+});
+document.querySelectorAll("#mvopts .chip").forEach(c => c.addEventListener("click", () => {
+  document.querySelectorAll("#mvopts .chip").forEach(x => { x.classList.add("n"); x.classList.remove("outl", "on") });
+  c.classList.remove("n"); c.classList.add("outl", "on");
+}));
+// ---------- tags sheet ----------
+let TAGS = ["#recipe", "#pasta", "#dinner"];
+function tgRender() {
+  $("tglist").innerHTML = TAGS.map((t, i) => `<button class="chip tagc" data-tgdel="${i}">${t} ×</button>`).join("");
+}
+$("tgadd").addEventListener("click", () => {
+  let v = $("tgin").value.trim();
+  if (v) { if (!v.startsWith("#")) v = "#" + v; TAGS.push(v); $("tgin").value = ""; tgRender(); }
+});
+$("tgin").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("tgadd").click(); } });
+document.addEventListener("click", e => { const d = e.target.closest("[data-tgdel]"); if (d) { TAGS.splice(+d.dataset.tgdel, 1); tgRender(); } });
+function openTg() { tgRender(); $("tgs").classList.add("up"); $("menu").classList.remove("up") }
+let prevTags = null;
+$("tgd").addEventListener("click", () => {
+  prevTags = prevTags || (src.match(/tags: .*/) || [""])[0];
+  src = src.replace(/tags: .*/, "tags: " + TAGS.join(" "));
+  $("tgs").classList.remove("up");
+  paint();
+  snack("Tags saved · Markdown frontmatter updated, index rebuilt", () => {
+    src = src.replace(/tags: .*/, prevTags);
+    TAGS = prevTags.replace(/^tags: /, "").split(/\s+/);
+    prevTags = null;
+    paint();
+    tgRender();
+  });
+});
+// ---------- delete confirm ----------
+function confirmDel() {
+  $("menu").classList.remove("up");
+  $("cf").classList.remove("hid");
+  playing = false; clearTimeout(tm); $("pp").textContent = "Play";
+}
+$("cfd").addEventListener("click", () => {
+  deleted = true;
+  $("rd").classList.add("hid"); $("ed").style.display = "none"; $("ob").classList.add("hid");
+  $("cf").classList.remove("hid");
+  $("cfd").classList.add("hid"); $("cfc").classList.add("hid");
+  $("cft").textContent = "This note is deleted.";
+  snack("Note deleted · Undo", () => {
+    deleted = false;
+    $("rd").classList.remove("hid"); $("ob").classList.remove("hid");
+    $("cf").classList.add("hid");
+    $("cfd").classList.remove("hid"); $("cfc").classList.remove("hid");
+    $("cft").textContent = "Delete this note and its save?";
+  });
+});
+$("cfc").addEventListener("click", () => $("cf").classList.add("hid"));
+// ---------- live property buttons ----------
+document.addEventListener("click", e => {
+  const lv = e.target.closest("[data-live]");
+  if (!lv) return;
+  if (lv.dataset.live === "mv" || lv.dataset.live === "folder") openMv();
+  if (lv.dataset.live === "tags") openTg();
+});
+// ---------- re-render the note (keeps deleted state visible) ----------
+function paint() {
+  $("rd").innerHTML = render(src);
+  if (deleted) $("rd").classList.add("hid");
+}
+// ---------- left-panel step info ----------
+function panel(i) {
+  $("cn").textContent = `Step ${i + 1} of ${C.length}`;
+  $("ct2").textContent = C[i][0];
+  $("cd").textContent = C[i][1];
+  $("cg").textContent = C[i][2];
+  $("pr").style.width = ((i + 1) / C.length * 100) + "%";
+  document.querySelectorAll("#sl button").forEach((b, j) => b.classList.toggle("on", j === i));
+}
+// ---------- tour engine ----------
+function go(i, manual) {
+  if (i < 0 || i >= SC.length) return;
+  clearTimeout(tm);
+  const was = cur; cur = i;
+  show(i);
+  enter(i);
+  panel(i);
+  if (manual) { if (playing) { playing = false; $("pp").textContent = "Play"; } }
+  else if (playing) tm = setTimeout(() => go(cur + 1), HOLD[i]);
+}
+// initial paint + start
+$("rd").innerHTML = render(src);
+$("pv").onclick = () => go(cur - 1, true);
+$("nx").onclick = () => go(cur + 1, true);
+$("pp").onclick = () => { playing = !playing; $("pp").textContent = playing ? "Pause" : "Play"; go(cur, playing); };
+$("eb").addEventListener("click", e => { e.stopPropagation(); setEdit(!editing); });
+$("ob").addEventListener("click", () => { if (editing) setEdit(false); else snack("Opens the source link — media is never stored"); });
+document.addEventListener("click", e => {
+  const g = e.target.closest("[data-go]"); if (g) { go(+g.dataset.go, true); return }
+  const k = e.target.closest(".ck"); if (k) { k.classList.toggle("on"); return }
+  const t = e.target.closest(".tg"); if (t) { t.classList.toggle("on"); t.setAttribute("aria-checked", t.classList.contains("on")); return }
+  const m = e.target.closest("[data-menu]"); if (m) { const act = m.dataset.menu; if (act === "mv") openMv(); if (act === "tg") openTg(); if (act === "rp") snack("Reprocessing: metadata, transcript and folder suggestion only — the note body is never touched"); if (act === "dl") confirmDel(); return }
+  const b = e.target.closest("[data-ins]"); if (b) { ins(b.dataset.ins); return }
+  const snu = e.target.closest("#snu"); if (snu && undoFn) { undoFn(); $("sn").classList.remove("up"); undoFn = null; return }
+});
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowRight") go(cur + 1, true);
+  if (e.key === "ArrowLeft") go(cur - 1, true);
+});
+addEventListener("resize", fit); fit(); go(0);
+</script>
+</body>
+</html>

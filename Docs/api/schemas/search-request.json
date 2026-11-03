@@ -1,0 +1,14 @@
+{
+  "$id": "search-request.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SearchRequest",
+  "description": "GET /search parameters (documented as an object so fixtures can exercise them; the wire format is query parameters). Hybrid: FTS5 keyword + e5-small vectors locally; results always carry a match reason.",
+  "type": "object",
+  "required": ["q"],
+  "properties": {
+    "q": { "type": "string", "minLength": 1 },
+    "folder_scope": { "type": ["string", "null"], "description": "Folder id to scope the search; absent/null = whole library." },
+    "cursor": { "type": ["string", "null"], "description": "Opaque pagination cursor." }
+  },
+  "additionalProperties": false
+}

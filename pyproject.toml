@@ -1,0 +1,19 @@
+[project]
+name = "claybank"
+version = "0.1.0"
+description = "ClayBank: personal save-and-note app for links to short video and web content"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flet==1.0.5",
+    "fastapi>=0.110.0",
+]
+
+[tool.pyrefly]
+python-interpreter-path = "C:/Users/Elightbook 840/AppData/Local/Programs/Python/Python312/python.exe"
+search-path = [".", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+

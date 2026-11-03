@@ -1,0 +1,14 @@
+{
+  "$id": "ask-request.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AskRequest",
+  "description": "POST /ask request. Folder-scoped by default; `save_scope=\"library\"` from the Search screen (Ask is not a tab). The engine value drives the UI hint: `local` must show *running on device · slower*.",
+  "type": "object",
+  "required": ["question"],
+  "properties": {
+    "question": { "type": "string", "minLength": 1 },
+    "save_scope": { "type": "string", "description": "Folder id or the literal `library`." },
+    "engine": { "type": "string", "enum": ["cloud", "local"], "default": "cloud" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,24 @@
+{
+  "$id": "search-result.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SearchResult",
+  "description": "Every result explains itself: match reason + matched fragment + jump target. Rendered as the prototype search rows.",
+  "type": "object",
+  "required": ["save", "match_reason", "score"],
+  "properties": {
+    "save": { "$ref": "save.json" },
+    "match_reason": {
+      "type": "string",
+      "enum": ["title", "transcript", "body", "tag", "folder", "semantic"]
+    },
+    "fragment": {
+      "type": ["string", "null"],
+      "description": "The matched phrase in place, for display with highlighting."
+    },
+    "jump_target": {
+      "type": ["string", "null"],
+      "description": "Stable in-note anchor: video timestamp (`0:42`) or heading anchor — from the write-time section index."
+    },
+    "score": { "type": "number", "minimum": 0 }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "$id": "sync-push.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SyncPush",
+  "description": "POST /sync/push request: the device replaying its offline queue. Every op was already user-approved and idempotent when queued, so replay order is safe; each op returns per-op result (sync endpoint never fails wholesale — conflicts surface as per-op `conflict` with detail the device turns into the keep-both banner).",
+  "type": "object",
+  "required": ["ops"],
+  "properties": {
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op", "payload", "idempotency_key"],
+        "properties": {
+          "op": {
+            "type": "string",
+            "enum": ["save_create", "save_patch", "note_put", "folder_create", "folder_patch", "tags_put", "suggestion_accept"]
+          },
+          "payload": { "type": "object", "description": "Shaped like the referenced request schema for that op (`save-capture`, `save-patch`, `note-put`, `folder-write`, `tags-put`, `suggestion-accept`)." },
+          "idempotency_key": { "type": "string" }
+        }
+      }
+    },
+    "device_cursor": { "type": "string", "description": "The device's last pulled server cursor, so the server can short-circuit a no-op replay after a pulled conflict." }
+  },
+  "additionalProperties": false
+}
