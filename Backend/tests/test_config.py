@@ -9,7 +9,7 @@ def test_settings_support_all_provider_keys() -> None:
         {
             "DEV_TOKEN": "test-token",
             "X_DEVICE_ID": "test-device",
-            "CLAYBANK_DB_PATH": "data/test.sqlite3",
+            "CLAYBANK_DB_PATH": "Backend/data/test.sqlite3",
             "META_MODEL_API_BASE_URL": "https://example.com/compat/v1",
             "META_MODEL_API_KEY": "meta-key",
             "META_MODEL_API_MODEL": "test-model",
@@ -23,7 +23,7 @@ def test_settings_support_all_provider_keys() -> None:
 
     assert settings.dev_token == "test-token"
     assert settings.device_id == "test-device"
-    assert settings.db_path == "data/test.sqlite3"
+    assert settings.db_path == "Backend/data/test.sqlite3"
     assert settings.meta_model_base_url == "https://example.com/compat/v1"
     assert settings.meta_model_api_key == "meta-key"
     assert settings.meta_model_name == "test-model"

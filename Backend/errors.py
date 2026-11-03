@@ -3,6 +3,8 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from Backend.contracts.version import CONTRACT_VERSION, versioned
+
 
 class DomainError(Exception):
     """Represent a contract-level domain failure."""
@@ -20,6 +22,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     status_code = {
         "already_saved": 409,
         "conflict": 409,
+        "contract_version_mismatch": 409,
         "unauthorized": 401,
         "not_found": 404,
         "validation": 422,
@@ -30,11 +33,14 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     }.get(exc.code, 422)
     return JSONResponse(
         status_code=status_code,
-        content={
-            "error": {
-                "code": exc.code,
-                "message": exc.message,
-                "detail": exc.detail,
+        content=versioned(
+            {
+                "error": {
+                    "code": exc.code,
+                    "message": exc.message,
+                    "detail": exc.detail,
+                }
             }
-        },
+        ),
+        headers={"X-Contract-Version": str(CONTRACT_VERSION)},
     )

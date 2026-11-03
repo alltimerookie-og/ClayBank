@@ -19,13 +19,21 @@ def _get_bool(name: str, default: bool = False) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_float(name: str, default: float) -> float:
+    """Parse a float environment value."""
+    try:
+        return float(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Typed backend settings loaded from process environment."""
 
     dev_token: str = ""
     device_id: str = ""
-    db_path: str = "data/claybank.sqlite3"
+    db_path: str = "Backend/data/claybank.sqlite3"
     meta_model_base_url: str = ""
     meta_model_api_key: str = ""
     meta_model_name: str = ""
@@ -34,6 +42,7 @@ class Settings:
     local_chat_model_path: str = ""
     crawl4ai_enabled: bool = False
     deep_crawl_enabled: bool = False
+    suggestion_threshold: float = 0.9
 
 
 def load_settings(environ: dict[str, str] | None = None) -> Settings:
@@ -55,7 +64,7 @@ def _load() -> Settings:
     return Settings(
         dev_token=_get("DEV_TOKEN", "dev-token"),
         device_id=_get("X_DEVICE_ID", "dev-laptop"),
-        db_path=_get("CLAYBANK_DB_PATH", "data/claybank.sqlite3"),
+        db_path=_get("CLAYBANK_DB_PATH", "Backend/data/claybank.sqlite3"),
         meta_model_base_url=_get("META_MODEL_API_BASE_URL"),
         meta_model_api_key=_get("META_MODEL_API_KEY"),
         meta_model_name=_get("META_MODEL_API_MODEL"),
@@ -64,4 +73,5 @@ def _load() -> Settings:
         local_chat_model_path=_get("LOCAL_CHAT_MODEL_PATH"),
         crawl4ai_enabled=_get_bool("CRAWL4AI_ENABLED", False),
         deep_crawl_enabled=_get_bool("DEEP_CRAWL_ENABLED", False),
+        suggestion_threshold=_get_float("SUGGESTION_THRESHOLD", 0.9),
     )

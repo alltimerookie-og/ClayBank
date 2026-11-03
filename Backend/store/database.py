@@ -8,6 +8,7 @@ from typing import Iterator
 
 
 ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_FILES = (
     ROOT / "Docs" / "db" / "0001_core.sql",
     ROOT / "Docs" / "db" / "0002_server.sql",
@@ -19,7 +20,7 @@ class Database:
     """Manage one SQLite connection for the FastAPI application."""
 
     def __init__(self, path: str | Path | None = None) -> None:
-        self.path = Path(path) if path else ROOT / "data" / "claybank.sqlite3"
+        self.path = Path(path) if path else BACKEND_ROOT / "data" / "claybank.sqlite3"
         self.connection: sqlite3.Connection | None = None
 
     def initialize(self) -> None:

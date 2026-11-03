@@ -260,7 +260,25 @@ class CaptureService:
                 "INSERT INTO changes (entity, entity_id, op, at) VALUES ('note', ?, 'put', ?)",
                 (save_id, now),
             )
-            return self._get_note(connection, save_id)
+            note = self._get_note(connection, save_id)
+            try:
+                from Backend.store.vectors import VectorIndex
+
+                passage = " ".join(
+                    part
+                    for part in [
+                        note.get("overview") if note else None,
+                        " ".join(note.get("key_points") or []) if note else "",
+                        note.get("transcript") if note else None,
+                        note.get("markdown") if note else "",
+                    ]
+                    if part
+                )
+                if passage.strip():
+                    VectorIndex(self.database).index_note(save_id, passage)
+            except Exception:
+                pass
+            return note
 
     def reprocess(self, save_id: str, from_stage: str | None) -> dict:
         """Requeue processing from a valid pipeline stage."""
