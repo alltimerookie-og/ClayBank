@@ -9,9 +9,10 @@ One link = one Save + one note + one job. Share now, find later. Text-only, vide
 ## Where to look
 
 | Item | Link |
-|---|---|
+| --- | --- |
 | Project guide | `README.md` |
-| Setup + env | `Docs/SETUP.md` + `.env.example` |
+| Developer setup | `Docs/SETUP.md` — clone, venv, install, run, checks |
+| Manual testing guide | `Docs/MANUAL_TESTING.md` — step-by-step screen workflows |
 | Architecture | `Docs/Architecture.md` |
 | Data model | `Docs/DataModel.md` + `Docs/db/` |
 | Contract | `Docs/api/README.md` + `openapi.yaml` + `schemas/` |
@@ -28,6 +29,10 @@ One link = one Save + one note + one job. Share now, find later. Text-only, vide
 
 Prototype is **interactive design truth** (`Docs/Phases.md:104`) - not a claim that every screen is fully implemented. Unfinished screens are represented by the prototype.
 
+The `aqib` branch may contain developer documentation updates after the historical tagged commit. The release tag `claybank-submission-v1` remains on `763d07e38c471aa36ba9cbadc13c3ce1d6d6849b` and is not moved by later docs-only commits.
+
+Developer docs: `Docs/SETUP.md` for commands and `Docs/MANUAL_TESTING.md` for exact manual workflows; both are later docs past the historical tag and do not change the tagged tree.
+
 ## Run and verify
 
 ```bash
@@ -41,7 +46,7 @@ flet run
 ## Phase completion
 
 | Phase | Outcome |
-|---|---|
+| --- | --- |
 | 0 Decisions | Done |
 | 1 Contract | Done |
 | 2 Capture+Inbox shell | Done (frontend) |

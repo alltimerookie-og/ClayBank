@@ -51,10 +51,21 @@ ClayBank/
                                                     features: resume, 5 tabs, sign-in). Do not edit.
 ```
 
+## Quick Start
+
+- **Setup:** `Docs/SETUP.md`
+- **Manual testing:** `Docs/MANUAL_TESTING.md`
+- **Automated tests:** `Docs/TEST_REPORT.md`
+- **Limitations:** `Docs/LIMITATIONS.md`
+- **Backend integration:** `Docs/MANUAL_TESTING.md#F` + `Docs/api/openapi.yaml`
+- **Device-runtime boundary:** `Docs/MANUAL_TESTING.md#G` + `Docs/LIMITATIONS.md`
+
 ## Entry points
 
 | I want to…                          | Read                                         |
 | ----------------------------------- | -------------------------------------------- |
+| Clone, install, and run locally     | `Docs/SETUP.md` → `Docs/MANUAL_TESTING.md`   |
+| Manually test every screen          | `Docs/MANUAL_TESTING.md`                     |
 | Know why anything is the way it is  | `Docs/Memory.md` → `Docs/adr/`               |
 | Build the backend                   | `Docs/Architecture.md` + `Docs/api/`         |
 | Build the app                       | `Docs/Architecture.md` + prototype v2        |
@@ -84,21 +95,22 @@ The Flet Python UI runs against fixtures/in-memory coordinators. There is no liv
 - **Device-runtime-dependent (preview only):** native notification delivery, `POST_NOTIFICATIONS`, OS share target, background clipboard reads (forbidden on Android 10+), GGUF inference.
 - See `Docs/LIMITATIONS.md` for the full claims matrix.
 
-## Quick start
+## Installation and launch
 
-Requires Python 3.12. See `Docs/SETUP.md` for the full guide.
-
-```bash
+```powershell
+git clone --branch aqib https://github.com/alltimerookie-og/ClayBank.git
+cd ClayBank
 python -m venv .venv
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-# macOS/Linux:       source .venv/bin/activate
-pip install --upgrade pip
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -e .
 pip install jsonschema>=4.21 referencing pytest
 flet run
 ```
 
-Secrets are placeholders (`DEV_TOKEN`, `X-Device-Id` per `Docs/adr/0006`); see `Docs/SETUP.md` and `.env.example`.
+Full commands for Windows/macOS/Linux: `Docs/SETUP.md`. Step-by-step screen checks: `Docs/MANUAL_TESTING.md`. No backend or device runtime is required for the checks in those guides.
+
+Secrets are placeholders (`DEV_TOKEN`, `X-Device-Id` per `Docs/adr/0006`); see `.env.example`.
 
 ## Verify
 
@@ -109,7 +121,20 @@ python -m pytest -q
 python -m compileall app tests
 ```
 
-Evidence for this SHA: `Docs/TEST_REPORT.md`. Known limitations: `Docs/LIMITATIONS.md`. Prototype (design truth): `PrototypingFiles/Claybank_ Interactive Workflow v2.html`.
+Evidence for this SHA: `Docs/TEST_REPORT.md`. Prototype (design truth): `PrototypingFiles/Claybank_ Interactive Workflow v2.html`.
+
+## Backend integration status
+
+No live FastAPI backend is shipped in this repo. Capture, extraction, cloud note generation, FTS5+faiss indexing, Ask retrieval, folder/tag persistence, and sync cursor pull/push all run fixture-backed when `ClayBankApp`'s `on_*` callbacks are not wired. The API contract (`Docs/api/openapi.yaml` + `Docs/api/schemas/*.json`) is the single source for field names/enums; `Docs/MANUAL_TESTING.md#F` maps each frontend seam to its documented callback and how to verify it once the main developer wires a live backend.
+
+## Device-runtime limitations
+
+Native notification delivery, `POST_NOTIFICATIONS` permission, OS share-target, background clipboard reads (forbidden on Android 10+), and local GGUF inference are **not verified** on device. The In-app notification preview (`app/views/capture/`) is explicitly a **desktop preview, not native delivery**. See `Docs/MANUAL_TESTING.md#G` and `Docs/LIMITATIONS.md` for the full disclosure.
+
+## Automated Tests
+
+`Docs/TEST_REPORT.md` (branch `aqib`, 374 passed frontend suite + contract + schema + compile). Re-run `python Docs/api/test_contract.py && python Docs/db/test_schema.py && python -m pytest -q` to confirm green.
+
 
 ## Current phases (see `Docs/Phases.md`)
 
