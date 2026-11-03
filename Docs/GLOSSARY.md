@@ -38,7 +38,7 @@
 | **Local chat model** | On-device GGUF via `llama_cpp_python`. Hackathon pick: **MiniCPM5-2B Q4_K_M (1.56 GB)** or **Qwen3-1.7B (~1.1 GB)**, user-selected, CPU-only, one loaded at a time. |
 | **Cloud model** | Meta Model API (`dev.meta.ai`, OpenAI-compatible `/compat/v1`); powers note generation always and chat when `Cloud` is selected. Contributor (training-on-data) tier is banned. |
 | **Chat model setting** | The only AI toggle, `Cloud | Local` — controls chat only; embeddings/search are local always, note generation cloud always. |
-| **ASR** | Automatic speech recognition. Cloud default (Muse Voice Transcribe), `faster-whisper small` local fallback; 10-minute duration cap. |
+| **ASR** | Automatic speech recognition. Multimodal model only: cloud transcription/visual description through the configured model, no separate audio STT and no local fallback; 10-minute duration cap. |
 | **Filing sheet** | The bottom sheet for moving a save (searchable folder picker + tag chips + Done). Never a full page. |
 | **Three-effort model** | Zero (capture, nothing asked) / one tap (accept suggestion, undoable) / deliberate (filing sheet). Deliberate must never be the default; one-tap must never be silent. |
 | **Degraded save** | A save whose pipeline partially failed, rendered normally in UI with reduced sections — never an error page. |

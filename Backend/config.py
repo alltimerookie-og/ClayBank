@@ -4,6 +4,21 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+
+def _load_dotenv() -> None:
+    """Load the repo-root .env without overriding real environment."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    root = Path(__file__).resolve().parents[1] / ".env"
+    if root.exists():
+        load_dotenv(root, override=False)
+
+
+_load_dotenv()
 
 
 def _get(name: str, default: str = "") -> str:

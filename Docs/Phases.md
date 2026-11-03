@@ -34,7 +34,7 @@ Demoable outcome: laptop flow — paste link → card in Inbox with live stages.
 Goal: a saved link becomes metadata + transcript.
 
 - `yt-dlp` (video metadata + captions) and `trafilatura` (article body), one `ExtractionResult` schema.
-- Cloud ASR (Muse Voice Transcribe) with `faster-whisper small` local fallback; 10-minute duration cap; **temp media scrubbed in all paths (ADR 0004)**.
+- Multimodal transcription only (amended 2026-11-03 — earlier Muse Voice Transcribe / faster-whisper plan retired); 10-minute duration cap; **transient media scrubbed in all paths (ADR 0004)**.
 - Job states + per-stage failures degrade without blocking (`Rules.md` §5).
 - `flet-libffmpeg` used on device only if needed for audio fetch in the local chat era (not in this phase's critical path).
 

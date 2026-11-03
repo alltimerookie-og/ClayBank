@@ -50,6 +50,8 @@ class YtDlpMetadata:
             "writesubtitles": True,
             "writeautomaticsub": True,
             "subtitleslangs": ["en"],
+            "js_runtimes": {"node": {}},
+            "remote_components": {"ejs:github"},
         }
         with YoutubeDL(options) as downloader:
             return downloader.extract_info(url, download=False) or {}
@@ -70,6 +72,8 @@ def transient_media_download(url: str, max_duration_seconds: int = 600) -> Itera
                     "format": media_format,
                     "outtmpl": str(output),
                     "noplaylist": True,
+                    "js_runtimes": {"node": {}},
+                    "remote_components": {"ejs:github"},
                 }
                 try:
                     with YoutubeDL(options) as downloader:
@@ -113,7 +117,7 @@ class VideoExtractor:
         duration = info.get("duration")
         published = self._published(info.get("upload_date"))
         transcript, transcript_available = self._captions(info)
-        media = self._transient_media(url) if self.allow_transient_media and not transcript_available else None
+        media = self._transient_media(url) if self.allow_transient_media else None
         media_available = transcript_available or (media is not None and media.has_audio)
         has_video = media.has_video if media else False
         return ExtractionResult(

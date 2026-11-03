@@ -132,7 +132,8 @@ paths:
       parameters:
         - { $ref: '#/components/parameters/saveId' }
         - { name: from, in: query, schema: { type: string, enum: [extracting, transcribing, analyzing, sorting] } }
-      responses: { '202': { description: Job re-queued } }
+        - { name: run, in: query, schema: { type: boolean, default: false }, description: 'Opt-in: process synchronously in this request (default only requeues; capture never blocks).' }
+      responses: { '202': { description: Job re-queued, or finished job when run=true } }
   /folders:
     post:
       tags: [organization]

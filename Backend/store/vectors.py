@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
-import struct
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +11,9 @@ import numpy as np
 from Backend.store.database import Database
 from Backend.store.embeddings import MODEL_ID, is_downloaded, model_directory
 from Backend.store.index_meta import IndexMeta
+
+
+log = logging.getLogger(__name__)
 
 
 class EmbeddingBackend:
@@ -29,6 +32,7 @@ class EmbeddingBackend:
             return
         if not is_downloaded():
             raise RuntimeError("Embedding model is not downloaded")
+        log.info("vectors: loading ONNX model from %s", self.model_dir)
         import onnxruntime as ort
         from tokenizers import Tokenizer
 
@@ -71,7 +75,8 @@ class VectorIndex:
     def __init__(self, database: Database, root: Path | None = None) -> None:
         self.database = database
         if root is None:
-            root = Path(__file__).resolve().parents[1]
+            db_path = getattr(database, "path", None)
+            root = Path(db_path).parent if db_path else Path(__file__).resolve().parents[1]
         self.root = root
         self.index_path = self.root / "data" / "faiss.index"
         self.embeddings = EmbeddingBackend()

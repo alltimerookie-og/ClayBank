@@ -17,7 +17,7 @@ You build the FastAPI + SQLite backend that the contract in `Docs/api/` already 
 
 1. **Phase 1 — contract first:** scaffold `backend/` with the module layout of `Docs/Architecture.md` §5. Pydantic request/response models are **derived from** `Docs/api/schemas/*.json` (codegen or conformance-tested against every fixture) — hand-retyping the contract is a failure the contract test should catch. Seed user + `DEV_TOKEN` / `X-Device-Id` middleware (same bearer shape as the future JWT).
    *Done when:* both tests green; `POST /saves` succeeds in-process and replays under the same `Idempotency-Key`; duplicate → `409 already_saved` carrying the existing id unless `force=true`.
-2. **Phase 3 — tier-1 extraction + ASR:** `yt-dlp` (video metadata/captions) and `trafilatura` (article body) onto one `ExtractionResult`; cloud ASR with local `faster-whisper` fallback; job states streamed `queued → extracting → transcribing → analyzing → sorting → ready`.
+2. **Phase 3 — tier-1 extraction + transcription:** `yt-dlp` (video metadata/captions) and `trafilatura` (article body) onto one `ExtractionResult`; multimodal-only transcription (no local fallback); job states streamed `queued → extracting → transcribing → analyzing → sorting → ready`.
    *Done when:* a YouTube and an Instagram reel land with a transcript or a clear degraded state — never a partial write, never media persisted (temp files scrubbed in `finally` on every path, including failure).
 3. **Phase 4 — note generation:** cloud-only LLM behind the provider Protocol, structured outputs guaranteeing Overview + Key points + Links; write-through updates FTS5/section index + `index_meta` in the same transaction boundary as the note.
    *Done when:* a fresh save produces a note matching the prototype's item note shape.
@@ -37,5 +37,5 @@ You build the FastAPI + SQLite backend that the contract in `Docs/api/` already 
 
 ## Standing checks
 
-- Keep `contract_version` on every response; bump only deliberately, and only with fixtures regenerated (`python Docs/api/generate_fixtures.py` — fixtures are never hand-edited).
+- Keep `contract_version` on every response (body sibling + `X-Contract-Version` header); reject stale explicit clients with `409 contract_version_mismatch`; bump only deliberately, and only with fixtures regenerated (`python Docs/api/generate_fixtures.py` — fixtures are never hand-edited).
 - `contract_version` mismatch across README, schemas, and fixtures is a bug in the docs, not something the code works around.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from Backend.asr.service import TranscriptionService
 from Backend.capture.service import CaptureService, utc_now
@@ -15,6 +16,7 @@ from Backend.processing.orchestrator import ExtractionOrchestrator
 from Backend.store.database import Database
 
 
+log = logging.getLogger(__name__)
 PIPELINE_STATES = ("queued", "extracting", "transcribing", "analyzing", "sorting", "ready")
 
 
@@ -37,26 +39,39 @@ class PipelineService:
 
     def process_save(self, save_id: str) -> dict:
         """Run one save through every pipeline stage with durable updates."""
+        log.info("pipeline: save %s queued -> extracting", save_id)
         self._set_state(save_id, "extracting")
         extraction = self.extractor.extract_save(save_id)
+        log.info("pipeline: save %s extracting done kind=%s tier=%s", save_id, extraction.get("kind"), extraction.get("tier"))
         if extraction["kind"] == "unknown":
+            log.warning("pipeline: save %s extraction degraded to unknown", save_id)
             return self._finish(save_id, degraded=True)
+        log.info("pipeline: save %s extracting -> transcribing", save_id)
         self._set_state(save_id, "transcribing")
         transcript = self._transcribe(save_id, extraction)
+        log.info("pipeline: save %s transcribing done chars=%d", save_id, len(transcript or ""))
+        log.info("pipeline: save %s transcribing -> analyzing", save_id)
         self._set_state(save_id, "analyzing")
         note = self._analyze(save_id, extraction, transcript)
+        log.info("pipeline: save %s analyzing done overview_chars=%d", save_id, len((note or {}).get("overview") or ""))
+        log.info("pipeline: save %s analyzing -> sorting", save_id)
         self._set_state(save_id, "sorting")
         self._sort(save_id, extraction, note)
+        log.info("pipeline: save %s sorting -> ready", save_id)
         return self._finish(save_id, degraded=False)
 
     def _transcribe(self, save_id: str, extraction: dict) -> str | None:
         """Transcribe transient media and persist transcript text."""
         bundle = self.capture.get_save_bundle(save_id)
         url = bundle["save"]["url"]
+        log.info("pipeline: save %s transient media download start", save_id)
         try:
             with transient_media_download(url) as media:
+                has_media = media.path is not None
+                log.info("pipeline: save %s media ready=%s kind=%s", save_id, has_media, media.kind)
                 text, _ = self.transcriber.transcribe(media.path if media else None)
-        except Exception:
+        except Exception as exc:
+            log.warning("pipeline: save %s media download failed: %s", save_id, exc)
             text = None
         if not text and extraction["result"].get("body"):
             text = extraction["result"]["body"]
@@ -79,11 +94,12 @@ class PipelineService:
         save = bundle["save"]
         title = extraction.get("title") or save.get("title") or "Untitled save"
         body = extraction["result"].get("body")
+        log.info("pipeline: save %s cloud note start title_chars=%d", save_id, len(title or ""))
         generated = self._cloud_note(save_id, title, body, transcript)
+        log.info("pipeline: save %s cloud note done generated=%s", save_id, generated is not None)
         overview = (generated or {}).get("overview") or (body or transcript or "")[:500]
         key_points = (generated or {}).get("key_points") or []
         links = (generated or {}).get("links") or []
-        transcript_block = f"\n\n## Transcript\n{transcript}" if transcript else ""
         markdown = (
             "---\n"
             f"source: {save['platform']}\n"
@@ -93,7 +109,7 @@ class PipelineService:
             f"## Overview\n{overview}\n\n"
             "## Key points\n"
             + "".join(f"- {point}\n" for point in key_points)
-            + transcript_block
+            + ("## Links\n" + "".join(f"- {link}\n" for link in links) if links else "")
             + "\n"
         )
         with self.database.transaction() as connection:
@@ -144,7 +160,10 @@ class PipelineService:
         context = "\n\n".join(part for part in [title, body, transcript] if part)[:6000]
         try:
             answer = self.chat.answer(
-                "Create note JSON with overview, key_points, and links.",
+                "Create note JSON with overview, key_points, and links. "
+                "Rules: no transcript field and no Transcript section — fold the substance "
+                "into key points. Prefix each key point with its [MM:SS] timestamp. "
+                "Collect every URL, handle, or named link mentioned or shown into links.",
                 context,
             )
         except DomainError:

@@ -38,7 +38,7 @@ The product promise **text only, never keep videos** fixes most of the architect
 | Vectors | **faiss-cpu** flat index | index file stored next to the DB; 384-dim |
 | Embeddings | **`intfloat/multilingual-e5-small`** | ONNX Runtime, 118M params, MIT, 100 languages; `query:` / `passage:` input prefixes |
 | Extraction | **yt-dlp** (video) · **trafilatura** (articles) | tier 1 deterministic; fallback chain in `adr/0007` |
-| ASR | **Multimodal model only** | multimodal transcription/visual description through the configured cloud model; no separate audio STT or local fallback |
+| ASR | **Multimodal model only** | multimodal transcription/visual description through the configured cloud model; no separate audio STT or local fallback (amended 2026-11-03) |
 | Note gen | **Cloud, always** — Meta Model API (`api.meta.ai`, `/compat/v1`, OpenAI-compatible) | any OpenAI-compatible provider swappable behind one interface; **contributor (training-on-data) tier is a hard no** |
 | Local chat | **`llama_cpp_python`** in-process | MiniCPM5-2B Q4_K_M (1.56 GB) or Qwen3-1.7B (~1.1 GB), user-picked; CPU-only (`n_ctx 4096`, 4 threads), 8 GB RAM floor, foreground service (`adr/0008`) |
 
@@ -47,7 +47,7 @@ The product promise **text only, never keep videos** fixes most of the architect
 | Stage | Where | Why |
 |---|---|---|
 | Extraction (yt-dlp / trafilatura) | server, network-bound | cannot run on device |
-| Transcription | server; multimodal model only | one cloud transcription path, no local fallback |
+| Transcription | server; multimodal model only | one cloud transcription path, no local fallback (amended 2026-11-03 — earlier Muse Voice Transcribe / faster-whisper plan retired) |
 | **Note generation** | **cloud always** | note quality; also keeps "Cloud AI gets the transcript and metadata only" literally true |
 | **Embeddings + index** | **local always** | privacy, instant, offline |
 | **Search** (FTS5 + vectors) | **local always** | offline by definition |

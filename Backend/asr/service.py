@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from Backend.asr.multimodal import MultimodalTranscriber
 from Backend.config import Settings, load_settings
+
+
+log = logging.getLogger(__name__)
 
 
 class TranscriptionService:
@@ -22,8 +26,11 @@ class TranscriptionService:
     def transcribe(self, media: Path | None, *, visual: bool = False) -> tuple[str | None, str]:
         """Transcribe media and report the multimodal provider result."""
         if media is None or not media.exists():
+            log.info("transcribe: no media available, skipping")
             return None, "unavailable"
         if self.settings.meta_model_contributor_tier:
             raise ValueError("Contributor training tier is forbidden")
+        log.info("transcribe: multimodal start size=%d", media.stat().st_size)
         text = self.multimodal.transcribe(media, visual=visual)
+        log.info("transcribe: multimodal done chars=%d", len(text or ""))
         return (text, "multimodal") if text else (None, "unavailable")

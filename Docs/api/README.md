@@ -4,8 +4,8 @@ This directory is the **single source of truth** for every field name and enum i
 
 ```
 Docs/api/
-├── openapi.yaml            ← 13 paths, OpenAPI 3.1; every body is a $ref into schemas/
-├── schemas/                ← 22 JSON Schemas (draft 2020-12), one per named shape
+├── openapi.yaml            ← 18 routes, OpenAPI 3.1; every body is a $ref into schemas/
+├── schemas/                ← 23 JSON Schemas (draft 2020-12), one per named shape
 ├── fixtures/               ← 23 generated example/counter-example files — build output, never hand-edited
 ├── generate_fixtures.py    ← the single authored source of example payloads
 ├── test_contract.py        ← validates schemas, fixtures, and grilling-locked guard rails
@@ -18,26 +18,26 @@ Docs/api/
 |---|---|
 | IDs | UUIDv7 strings |
 | Timestamps | ISO-8601 UTC with `Z` suffix |
-| Success envelope | `{"data": …}` |
-| Error envelope | `{"error": {"code", "message", "detail"}}` |
+| Success envelope | `{"data": …, "contract_version": 0}` + `X-Contract-Version` header |
+| Error envelope | `{"error": {"code", "message", "detail"}, "contract_version": 0}` + `X-Contract-Version` header |
 | Pagination | opaque `cursor` (query param on list requests, field on page responses) |
 | Idempotency | writes accept `Idempotency-Key` header; capture also uses the canonicalized URL as a duplicate key |
-| Contract version | `x-contract-version: 0` in `openapi.yaml`; clients send `contract_version` mismatch → `409 contract_version_mismatch` |
+| Contract version | `x-contract-version: 0` in `openapi.yaml`; every response carries `contract_version` + `X-Contract-Version`; clients may send `X-Contract-Version`, mismatch → `409 contract_version_mismatch` |
 | Enums | defined once, in `schemas/*.json` only |
 
 Success:
 
 ```json
-{ "data": { … } }
+{ "data": { … }, "contract_version": 0 }
 ```
 
 Error:
 
 ```json
-{ "error": { "code": "conflict", "message": "Stale write", "detail": { "expected_updated_at": "…" } } }
+{ "error": { "code": "conflict", "message": "Stale write", "detail": { "expected_updated_at": "…" } }, "contract_version": 0 }
 ```
 
-## Paths (13)
+## Paths (18)
 
 | Method | Path | Request body | Response body (`data`) | Notes |
 |---|---|---|---|---|

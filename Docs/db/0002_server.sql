@@ -60,3 +60,24 @@ CREATE TABLE capture_audit (
 );
 
 -- note server store does NOT need device_queue / sync_state / local settings.
+
+-- ----------------------------------------------------------------------------
+-- extraction cache — same user + same canonical URL reuses tier-1 results.
+-- Keyed by (user_id, url) so one user's saves never serve another user.
+-- The orchestrator reads this before hitting yt-dlp/trafilatura and writes
+-- it after a successful non-unknown extraction.
+-- ----------------------------------------------------------------------------
+CREATE TABLE extraction_cache (
+  user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  url          TEXT NOT NULL,
+  tier         INTEGER NOT NULL,
+  kind         TEXT NOT NULL CHECK (kind IN ('video', 'article', 'unknown')),
+  title        TEXT,
+  channel      TEXT,
+  body         TEXT,
+  transcript_available INTEGER NOT NULL DEFAULT 0 CHECK (transcript_available IN (0,1)),
+  capability_json TEXT NOT NULL DEFAULT '{}',
+  source_meta_json TEXT NOT NULL DEFAULT '{}',
+  created_at   TEXT NOT NULL,
+  PRIMARY KEY (user_id, url)
+);

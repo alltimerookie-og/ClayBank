@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from Backend.config import Settings
 from Backend.errors import DomainError
+
+
+log = logging.getLogger(__name__)
 
 
 def _response_text(payload: object) -> str | None:
@@ -42,15 +46,18 @@ class MultimodalTranscriber:
     def transcribe(self, media: Path, *, visual: bool = False) -> str | None:
         """Transcribe audio/video or describe images through the model."""
         if not self.enabled:
+            log.info("multimodal: provider not configured, skipping")
             return None
         import httpx
 
         base = self.settings.meta_model_base_url.rstrip("/")
+
+        log.info("multimodal: uploading media size=%d", media.stat().st_size)
         headers = {"Authorization": f"Bearer {self.settings.meta_model_api_key}"}
         prompt = (
-            "Describe the important visual content in detail."
+            "Describe the important visual content in detail, prefixing each described segment with its [MM:SS] timestamp."
             if visual
-            else "Transcribe all speech verbatim. Return only the transcript."
+            else "Transcribe all speech verbatim with an [MM:SS] timestamp prefix on each spoken segment. Return only the timestamped transcript."
         )
         with media.open("rb") as handle:
             upload = httpx.post(

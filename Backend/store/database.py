@@ -45,6 +45,24 @@ class Database:
                 self.connection.executescript(schema_file.read_text(encoding="utf-8"))
         self.connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS extraction_cache (
+              user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+              url          TEXT NOT NULL,
+              tier         INTEGER NOT NULL,
+              kind         TEXT NOT NULL,
+              title        TEXT,
+              channel      TEXT,
+              body         TEXT,
+              transcript_available INTEGER NOT NULL DEFAULT 0,
+              capability_json TEXT NOT NULL DEFAULT '{}',
+              source_meta_json TEXT NOT NULL DEFAULT '{}',
+              created_at   TEXT NOT NULL,
+              PRIMARY KEY (user_id, url)
+            )
+            """
+        )
+        self.connection.execute(
+            """
             INSERT OR IGNORE INTO users (id, name, created_at)
             VALUES ('dev-user', 'Development User', '1970-01-01T00:00:00Z')
             """

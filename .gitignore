@@ -8,7 +8,7 @@ Docs/adr/
 TempDocs/
 
 # Local runtime data: dev SQLite DB is rebuilt from Docs/db/*.sql on startup
-data/
+Backend/data/
 *.sqlite3
 *.sqlite3-journal
 *.sqlite3-wal
@@ -29,6 +29,13 @@ dist/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+
+# Local embedding model weights (downloaded via Backend/store/embeddings.py;
+# ~1.3 GB with quantized variants — never commit binaries or HF caches)
+Backend/models/multilingual-e5-small/*
+!Backend/models/.gitkeep
+*.onnx
+**/.cache/huggingface/
 
 # Local secrets / env overrides
 .env

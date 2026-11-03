@@ -203,8 +203,13 @@ async def reprocess_save(
     authorization: Annotated[str | None, Header()] = None,
     x_device_id: Annotated[str | None, Header()] = None,
     x_contract_version: VersionHeader = None,
+    run: bool = False,
 ) -> JSONResponse:
-    """Requeue processing from a selected pipeline stage."""
+    """Requeue processing from a selected pipeline stage.
+
+    Pass ``run=true`` to process synchronously in this request (opt-in;
+    capture itself never blocks).
+    """
     require_contract_version(x_contract_version)
     if from_stage is not None and from_stage not in {
         "extracting",
@@ -214,10 +219,13 @@ async def reprocess_save(
     }:
         raise DomainError("validation", "Invalid reprocess stage")
     require_auth(authorization, x_device_id)
-    return versioned_response(
-        CaptureService(get_database(request)).reprocess(save_id, from_stage),
-        status_code=status.HTTP_202_ACCEPTED,
-    )
+    job = CaptureService(get_database(request)).reprocess(save_id, from_stage)
+    if run:
+        from Backend.processing.pipeline import PipelineService
+
+        PipelineService(get_database(request)).process_save(save_id)
+        job = CaptureService(get_database(request)).get_save_bundle(save_id)["job"]
+    return versioned_response(job, status_code=status.HTTP_202_ACCEPTED)
 
 
 @router.post("/folders", status_code=status.HTTP_201_CREATED)
