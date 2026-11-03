@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Claybank: Interactive Workflow</title>
+<style>
+:root{--bg:#FAF9F5;--card:#fff;--ink:#1F1E1D;--mut:#6B6860;--line:#E1DCCF;--acc:#B5532F;--accfg:#fff;--accbg:#F6E4DA;--accink:#8A3E22;--ok:#E3F0EA;--okink:#2E5E50;--chip:#EEEBE2;--chipink:#4A4842;--page:#EFEBE1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1C1B19;--card:#262421;--ink:#F2EFE8;--mut:#A8A398;--line:#3A3732;--acc:#E08A64;--accfg:#1F1E1D;--accbg:#3A2A22;--accink:#F0B79C;--ok:#1F3A31;--okink:#9FD3BF;--chip:#2F2D29;--chipink:#CFCABF;--page:#121110}}
+:root[data-theme="dark"]{--bg:#1C1B19;--card:#262421;--ink:#F2EFE8;--mut:#A8A398;--line:#3A3732;--acc:#E08A64;--accfg:#1F1E1D;--accbg:#3A2A22;--accink:#F0B79C;--ok:#1F3A31;--okink:#9FD3BF;--chip:#2F2D29;--chipink:#CFCABF;--page:#121110}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--page);color:var(--ink);font-family:system-ui,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;align-items:flex-start;padding:20px;max-width:1100px;margin:0 auto}
+#box{flex:none}
+#phone{width:390px;height:844px;position:relative;background:var(--bg);border-radius:36px;border:1px solid var(--line);overflow:hidden;transform-origin:top left;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.panel{flex:1 1 320px;max-width:460px;display:flex;flex-direction:column;gap:14px}
+.panel h1{margin:0;font-size:24px}
+.cap{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:6px}
+.cap b{font-size:17px}.cap span{color:var(--mut);font-size:14px}
+.ctl{display:flex;gap:8px}
+.ctl button,.steps button{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 14px;font-weight:600}
+.ctl .pp{background:var(--acc);color:var(--accfg);border-color:var(--acc);flex:1}
+.prog{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .4s}
+.steps{display:flex;flex-wrap:wrap;gap:6px}.steps button{padding:6px 10px;font-size:12px;border-radius:999px;color:var(--mut)}
+.steps .on{background:var(--accbg);color:var(--accink);border-color:var(--acc);font-weight:700}
+.note{font-size:12px;color:var(--mut)}
+.scr{position:absolute;inset:0;padding:28px 18px 14px;display:flex;flex-direction:column;gap:12px;opacity:0;visibility:hidden;transform:translateX(24px);transition:opacity .4s,transform .4s,visibility 0s linear .4s}
+.scr.left{transform:translateX(-24px)}
+.scr.on{opacity:1;visibility:visible;transform:none;transition-delay:0s}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.ic.f{fill:currentColor;stroke:none}.ic.s{width:18px;height:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.06);text-align:left;width:100%}
+.r{display:flex;gap:12px;align-items:center}.col{display:flex;flex-direction:column;gap:4px}
+.h{font-size:26px;font-weight:700;margin:0}.t{font-size:15px;font-weight:650}.s{font-size:13px;color:var(--mut)}
+.crumb{font-size:12px;color:var(--mut);display:flex;gap:6px;align-items:center}.crumb b{color:var(--ink)}.crumb button{background:none;border:0;padding:0;display:flex;color:var(--ink)}
+.pill{background:var(--ok);color:var(--okink);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:650;border:0}
+.chip{background:var(--accbg);color:var(--accink);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600;border:0;white-space:nowrap}.chip.n{background:var(--chip);color:var(--chipink)}
+.th{width:68px;height:68px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff}
+.g1{background:linear-gradient(135deg,#E9A27F,#B5532F)}.g2{background:linear-gradient(135deg,#8FB5A6,#3F7766)}.g3{background:linear-gradient(135deg,#9DB0D6,#4A5F97)}.g4{background:linear-gradient(135deg,#D6B36A,#9A7424)}
+.btn{border:0;border-radius:14px;padding:14px;text-align:center;font-weight:650;background:var(--acc);color:var(--accfg);width:100%}.btn.alt{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.bar{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;font-size:14px;color:var(--mut);display:flex;gap:10px;align-items:center;width:100%;text-align:left}
+.ban{background:var(--accbg);border-radius:14px;padding:12px}
+.nav{margin-top:auto;display:flex;justify-content:space-around;border-top:1px solid var(--line);padding-top:10px}
+.nav button{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;font-size:11px;color:var(--mut)}.nav .on{color:var(--acc);font-weight:700}
+.pg{height:6px;border-radius:3px;background:var(--chip);overflow:hidden}.pg i{display:block;height:100%;width:0;background:var(--acc)}
+.row{display:flex;gap:10px;overflow:hidden}.tile{width:150px;flex:none;padding:8px;display:flex;flex-direction:column;gap:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.c4{display:grid;grid-template-columns:1fr 1fr;gap:3px;height:72px;border-radius:10px;overflow:hidden}
+.tg{width:40px;height:24px;border-radius:12px;background:var(--line);position:relative;border:0;flex:none;margin-left:auto}.tg i{position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:9px;background:#fff;transition:left .2s}.tg.on{background:var(--acc)}.tg.on i{left:19px}
+.ck{display:flex;gap:8px;align-items:center;background:none;border:0;padding:3px 0;font-size:13px;color:var(--mut)}.ck i{width:16px;height:16px;border:2px solid var(--mut);border-radius:5px}.ck.on i{background:var(--acc);border-color:var(--acc)}
+.sheet{position:absolute;left:12px;right:12px;bottom:12px;background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:12px;transform:translateY(120%);transition:transform .5s cubic-bezier(.2,.8,.2,1)}.sheet.up{transform:none}
+.st{transition:all .3s}.st.done{background:var(--ok);color:var(--okink)}
+.fl{animation:fl .6s both}.on .fl:nth-child(2){animation-delay:.2s}.on .fl:nth-child(3){animation-delay:.4s}
+@keyframes fl{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+.show{animation:pop .45s both}.hid{display:none}.ta{flex:1;resize:none;border:1px solid var(--acc);border-radius:12px;background:var(--card);color:var(--ink);font:12.5px/1.5 ui-monospace,monospace;padding:12px}.md{flex:1;min-height:0;overflow-y:auto}.fade{opacity:0;transition:opacity .5s}.fade.show{opacity:1;animation:none}
+.caret{display:inline-block;width:2px;height:16px;background:var(--acc);animation:bl 1s steps(2) infinite}@keyframes bl{50%{opacity:0}}
+.dots i{display:inline-block;width:7px;height:7px;border-radius:4px;background:var(--mut);margin-right:4px;animation:bl .8s infinite}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M4 13l2-8h12l2 8v6H4zM4 13h5l1 2h4l1-2h5"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M16 16l5 5"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M6 18l2-2M16 8l2-2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l11 6-11 6z"/></symbol>
+</defs></svg>
+<main class="app">
+<div id="box"><div id="phone">
+
+<section class="scr" id="s0" style="justify-content:center;align-items:center;text-align:center;background:linear-gradient(160deg,#E9A27F,#B5532F 60%,#7A331A);color:#fff">
+<div style="width:96px;height:96px;border-radius:26px;background:rgba(255,255,255,.2);border:2px solid #fff;display:flex;align-items:center;justify-content:center"><svg class="ic" style="width:48px;height:48px"><use href="#i-folder"/></svg></div>
+<div style="font-size:40px;font-weight:750">Claybank</div><div>Share it now. Find it later.</div>
+<div style="width:200px;height:6px;border-radius:3px;background:rgba(255,255,255,.3);overflow:hidden;margin-top:30px"><i id="b0" style="display:block;height:100%;width:0;background:#fff;transition:width 1.8s linear"></i></div><div style="font-size:13px">Opening your library...</div>
+</section>
+
+<section class="scr" id="s1">
+<div class="r"><button class="s" style="background:none;border:0" data-go="0">Back</button><button class="s" style="margin-left:auto;background:none;border:0" data-go="2">Skip</button></div>
+<div class="pg"><i style="width:33%"></i></div><div class="s">Step 1 of 3</div>
+<div style="height:340px;border-radius:24px;background:linear-gradient(160deg,var(--accbg),#E9A27F);padding:30px 24px;display:flex;flex-direction:column;gap:18px">
+<div class="card r fl" style="width:230px"><div class="th g2" style="width:44px;height:44px"></div><div class="t">Reel saved</div></div>
+<div class="card r fl" style="width:230px;margin-left:70px"><div class="th g3" style="width:44px;height:44px"></div><div class="t">Short saved</div></div>
+<div class="card r fl" style="width:230px"><div class="th g4" style="width:44px;height:44px"></div><div class="t">Post saved</div></div></div>
+<h1 class="h">Share to save</h1><div class="s" style="font-size:15px">In Instagram, YouTube or Facebook, tap Share, then choose Claybank. That is all.</div>
+<button class="btn" style="margin-top:auto" data-go="2">Next</button>
+</section>
+
+<section class="scr" id="s2">
+<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:20px;text-align:center"><div class="th g1" style="width:64px;height:64px;border-radius:18px"><svg class="ic" style="width:32px;height:32px"><use href="#i-folder"/></svg></div><h1 class="h">Welcome to Claybank</h1><div class="s">Sign in to keep your saves safe.</div></div>
+<div style="display:flex;background:var(--chip);border-radius:14px;padding:4px"><span style="flex:1;text-align:center;padding:10px;border-radius:10px;background:var(--card);font-weight:650;font-size:14px">Sign in</span><span class="s" style="flex:1;text-align:center;padding:10px">Create account</span></div>
+<button class="btn alt" data-go="3">Continue with Google</button><button class="btn alt" data-go="3">Continue with Apple</button>
+<div class="r s"><i style="flex:1;height:1px;background:var(--line)"></i>or<i style="flex:1;height:1px;background:var(--line)"></i></div>
+<div class="col"><span class="s">Email</span><div class="bar">you@example.com</div></div>
+<div class="col"><span class="s">Password</span><div class="bar">........<span style="margin-left:auto;color:var(--acc);font-weight:600">Show</span></div></div>
+<button class="btn" data-go="3">Sign in</button>
+<div class="s" style="text-align:center;margin-top:auto">By continuing you agree to the Terms and Privacy Policy.</div>
+</section>
+
+<section class="scr" id="s3">
+<div class="r"><h1 class="h">Inbox</h1><span class="pill" id="pl">2 processing</span></div>
+<button class="bar" data-go="11"><svg class="ic s"><use href="#i-search"/></svg>Search your saves</button>
+<div class="t">Pick up where you left off</div>
+<div class="row">
+<button class="card tile" data-go="8"><div class="th g1" style="width:auto;height:56px"><svg class="ic f"><use href="#i-play"/></svg></div><div class="t" style="font-size:13px">Creamy garlic pasta</div><div class="s">Stopped at 0:42</div></button>
+<button class="card tile" data-go="8"><div class="th g2" style="width:auto;height:56px"><svg class="ic f"><use href="#i-play"/></svg></div><div class="t" style="font-size:13px">Desk stretches</div><div class="s">2 of 5 done</div></button>
+<button class="card tile" data-go="8"><div class="th g3" style="width:auto;height:56px"><svg class="ic f"><use href="#i-play"/></svg></div><div class="t" style="font-size:13px">Notion setup</div><div class="s">Not opened</div></button></div>
+<div class="ban r"><div class="col"><div class="t">3 items need a quick check</div><div class="s">Swipe right to confirm. Left to change.</div></div><span class="chip" style="margin-left:auto">Review</span></div>
+<div class="card col hid" id="nc" style="gap:6px"><div class="r"><div class="t">New: Creamy garlic pasta</div><span class="s" style="margin-left:auto" id="nt">Transcribing</span></div><div class="pg"><i id="nb" style="transition:width 2.2s linear"></i></div></div>
+<button class="card r" data-go="8"><div class="th g4"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Notion study setup</div><div class="s">Suggested: Study. Swipe to confirm.</div><div class="r" style="gap:6px"><span class="chip">Study</span><span class="chip n">92% sure</span></div></div></button>
+<button data-go="4" aria-label="Add link" style="position:absolute;right:18px;bottom:84px;width:56px;height:56px;border-radius:18px;border:0;background:var(--acc);color:var(--accfg);font-size:30px;box-shadow:0 4px 10px rgba(0,0,0,.3)">+</button>
+<nav class="nav" data-tab="0"></nav>
+</section>
+
+<section class="scr" id="s4" style="background:linear-gradient(170deg,#3a2f2a,#111);color:#fff">
+<div class="r"><b>Instagram</b><span class="s" style="margin-left:auto;color:#ddd">Reel</span></div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;font-size:18px">Creamy garlic pasta in 20 min<br><span class="s" style="color:#ddd">Copy the link, then tap the Claybank bubble</span></div>
+<div style="position:absolute;right:10px;top:330px;width:52px;height:52px;border-radius:26px;background:var(--acc);color:var(--accfg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);font-size:12px;font-weight:700">CB</div><div class="sheet" id="sh" style="color:var(--ink)">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="r"><div style="width:44px;height:44px;border-radius:22px;background:#3F7766;color:#fff;display:flex;align-items:center;justify-content:center"><svg class="ic"><use href="#i-check"/></svg></div><div class="col"><div class="t" style="font-size:18px">Saved to Claybank</div><div class="s">instagram.com/reel/Cx9...</div></div></div>
+<div class="s">Save in (one tap)</div><div class="r" style="gap:6px"><span class="chip">Cooking (suggested)</span><span class="chip n">Fitness</span><span class="chip n">Study</span></div>
+<div class="bar">Note: why do you want this?</div>
+<div class="r" style="gap:6px"><span class="chip n st" id="t1">Fetched</span><span class="chip n st" id="t2">Transcribing</span><span class="chip n st" id="t3">Sorting</span></div>
+<button class="btn" data-go="7">Done</button><button class="btn alt" data-go="8">Open in app</button></div>
+</section>
+
+<section class="scr" id="s5">
+<div class="crumb"><button data-go="10" aria-label="Back"><svg class="ic s"><use href="#i-back"/></svg></button><span>Folders</span>/<span>Cooking</span>/<b>Pasta</b><button class="chip" id="eb" style="margin-left:auto">Edit</button><span>Move | Delete</span></div>
+<div id="rd" class="md"></div>
+<div id="ed" style="display:none;flex:1;min-height:0;flex-direction:column;gap:8px"><div class="r" style="gap:6px"><button class="chip n" data-ins="h">H</button><button class="chip n" data-ins="b"><b>B</b></button><button class="chip n" data-ins="u">List</button><button class="chip n" data-ins="t">Task</button><button class="chip n" data-ins="l">Link</button></div><textarea id="ta" class="ta" aria-label="Edit note in Markdown"></textarea></div>
+<button class="btn" id="ob">Open original video</button>
+</section>
+
+<section class="scr" id="s6">
+<div class="crumb"><b>Library</b></div>
+<div class="r"><h1 class="h">Folders</h1><span class="chip" style="margin-left:auto">+ New</span></div>
+<div class="r" style="gap:6px"><span class="chip">Recent</span><span class="chip n">A to Z</span><span class="chip n">Most saved</span></div>
+<div class="grid">
+<button class="card col" style="gap:6px" data-go="10"><div class="c4"><i class="g1"></i><i class="g4"></i><i class="g2"></i><i class="g1"></i></div><div class="t">Cooking</div><div class="s">24 saves · today</div></button>
+<button class="card col" style="gap:6px"><div class="c4"><i class="g2"></i><i class="g3"></i><i class="g2"></i><i class="g4"></i></div><div class="t">Fitness</div><div class="s">13 saves · 2d ago</div></button>
+<button class="card col" style="gap:6px"><div class="c4"><i class="g3"></i><i class="g3"></i><i class="g1"></i><i class="g4"></i></div><div class="t">Study</div><div class="s">18 saves · 5d ago</div></button>
+<button class="card col" style="gap:6px"><div class="c4"><i class="g4"></i><i class="g1"></i><i class="g2"></i><i class="g3"></i></div><div class="t">Unsorted</div><div class="s">3 need a check</div></button></div>
+<div class="s">Long press to drag, rename or merge. Undo shows after each change.</div>
+<nav class="nav" data-tab="1"></nav>
+</section>
+
+<section class="scr" id="s7">
+<div class="crumb"><button data-go="9" aria-label="Back"><svg class="ic s"><use href="#i-back"/></svg></button><span>Folders</span>/<b>Cooking</b></div>
+<div class="r"><h1 class="h">Cooking</h1><span class="s" style="margin-left:auto">24 saves</span></div>
+<div class="r" style="gap:6px"><span class="chip">All</span><span class="chip n">Pasta 6</span><span class="chip n">Baking 9</span><span class="chip n">Quick 9</span></div>
+<div class="ban r"><div class="col"><div class="t">Resume</div><div class="s">Creamy garlic pasta at 0:42</div></div><button class="chip" style="margin-left:auto" data-go="8">Open</button></div>
+<button class="card r" data-go="8"><div class="th g1"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Creamy garlic pasta</div><div class="s">Fast garlic cream sauce.</div><div class="r" style="gap:6px"><span class="chip">Pasta</span><span class="chip n">Instagram</span></div></div></button>
+<button class="card r" data-go="8"><div class="th g2"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">One pot pasta</div><div class="s">All in one pan.</div><div class="r" style="gap:6px"><span class="chip">Pasta</span><span class="chip n">YouTube</span></div></div></button>
+<button class="card r" data-go="8"><div class="th g4"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">No knead bread</div><div class="s">Overnight dough.</div><div class="r" style="gap:6px"><span class="chip">Baking</span><span class="chip n">YouTube</span></div></div></button>
+<nav class="nav" data-tab="1"></nav>
+</section>
+
+<section class="scr" id="s8">
+<div class="bar" style="border-color:var(--acc);color:var(--ink)"><svg class="ic s"><use href="#i-search"/></svg><span id="q"></span><span class="caret"></span></div>
+<div class="s">Recent searches</div><div class="r" style="gap:6px"><span class="chip n">back pain stretches</span><span class="chip n">notion template</span></div>
+<div class="r" style="gap:6px"><span class="chip">All</span><span class="chip n">YouTube</span><span class="chip n">Instagram</span><span class="chip n">This month</span></div>
+<div id="res" class="fade" style="display:flex;flex-direction:column;gap:12px"><div class="s">3 results · keyword + meaning</div>
+<button class="card r" data-go="8"><div class="th g1"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Creamy garlic pasta</div><div class="s">Spoken at 0:42: add cream</div><div class="r" style="gap:6px"><span class="chip">Cooking</span><span class="chip n">98%</span></div></div></button>
+<button class="card r" data-go="8"><div class="th g2"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">One pot pasta</div><div class="s">Match in summary</div><div class="r" style="gap:6px"><span class="chip">Cooking</span><span class="chip n">81%</span></div></div></button>
+<button class="card r" data-go="8"><div class="th g4"><svg class="ic f"><use href="#i-play"/></svg></div><div class="col"><div class="t">Sauce basics</div><div class="s">Match in tag</div><div class="r" style="gap:6px"><span class="chip">Cooking</span><span class="chip n">64%</span></div></div></button></div>
+<nav class="nav" data-tab="2"></nav>
+</section>
+
+<section class="scr" id="s9">
+<div class="r"><h1 class="h">Ask</h1><span class="chip" style="margin-left:auto">Scope: Cooking</span></div>
+<div id="u" class="hid" style="align-self:flex-end;max-width:75%;background:var(--acc);color:var(--accfg);border-radius:18px 18px 4px 18px;padding:12px;font-size:14px">What should I cook this week?</div>
+<div id="dt" class="card hid dots" style="width:70px;border-radius:18px"><i></i><i></i><i></i></div>
+<div id="ai" class="card col hid" style="max-width:85%;border-radius:18px 18px 18px 4px;gap:8px;width:auto"><div style="font-size:14px">Try the garlic pasta first. It takes 20 minutes.</div><div class="s">Based on 3 saves</div><div class="r" style="gap:6px"><button class="chip" data-go="8">Creamy garlic pasta</button><button class="chip n" data-go="8">One pot pasta</button></div></div>
+<div class="s" style="margin-top:auto">Try asking</div><div class="r" style="gap:6px"><span class="chip n">Summarize this week</span><span class="chip n">What did I never open?</span></div>
+<div class="bar">Type a question...<span class="chip" style="margin-left:auto">Send</span></div>
+<nav class="nav" data-tab="3"></nav>
+</section>
+
+<section class="scr" id="s10">
+<h1 class="h">Settings</h1>
+<div class="card r"><div class="th g1" style="width:44px;height:44px;border-radius:22px"></div><div class="col"><div class="t">Md. Shefayet</div><div class="s">Last backup: just now</div></div><span class="pill" style="margin-left:auto">Synced</span></div>
+<div class="s">AI and saving</div>
+<div class="card r"><span class="t">AI model</span><span class="s" style="margin-left:auto">Cloud | Local</span></div>
+<div class="card r"><span class="t">Auto-sort new saves</span><button class="tg on" role="switch" aria-checked="true" aria-label="Auto-sort"><i></i></button></div>
+<div class="card r"><span class="t">Weekly digest of unopened saves</span><button class="tg on" role="switch" aria-checked="true" aria-label="Weekly digest"><i></i></button></div>
+<div class="card r"><span class="t">Wi-Fi only processing</span><button class="tg" role="switch" aria-checked="false" aria-label="Wi-Fi only"><i></i></button></div>
+<div class="card r"><span class="t">Storage used</span><span class="s" style="margin-left:auto">4 MB (text only)</span></div>
+<div class="ban s">Privacy: videos are never saved. Cloud AI gets the transcript and metadata only.</div>
+<nav class="nav" data-tab="4"></nav>
+</section>
+
+
+<section class="scr" id="s11" style="background:linear-gradient(170deg,#6b5d54,#2a2623)">
+<div class="t" style="color:#fff;font-size:22px">Inbox</div>
+<div class="sheet" id="sh2" style="color:var(--ink)">
+<i style="align-self:center;width:40px;height:4px;border-radius:2px;background:var(--line)"></i>
+<div class="t" style="font-size:18px">Add a link</div>
+<div class="bar" style="border-color:var(--acc);color:var(--ink)"><span id="lk"></span><button class="chip" style="margin-left:auto">Paste</button></div>
+<div class="ban r"><div class="col"><div class="t">Link found in clipboard</div><div class="s">instagram.com/reel/Cx9...</div></div><button class="chip" style="margin-left:auto">Use it</button></div>
+<div class="s">Save in (one tap)</div><div class="r" style="gap:6px"><span class="chip">Cooking (suggested)</span><span class="chip n">Fitness</span><span class="chip n">Study</span></div>
+<div class="bar">Note: why do you want this?</div>
+<button class="btn" data-go="7">Save link</button><button class="btn alt" data-go="3">Cancel</button></div>
+</section>
+<section class="scr" id="s12" style="background:linear-gradient(180deg,#2B2A28,#1A1918);color:#fff">
+<div class="r"><b style="font-size:20px">9:41</b><span style="margin-left:auto;font-size:13px;color:#ddd">Fri, 30 Oct</span></div>
+<div class="r"><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i><i style="flex:1;height:52px;border-radius:26px;background:#B5532F"></i><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i><i style="flex:1;height:52px;border-radius:26px;background:#4A4842"></i></div>
+<div style="font-size:13px;color:#ddd;margin-top:8px">Notifications</div>
+<div class="card col" style="background:#3A3835;border-color:#3A3835;color:#fff;gap:8px"><div class="r" style="font-size:12px;color:#ddd"><b style="color:#fff">Claybank</b>· now</div><div class="t">Save a link</div><div style="font-size:13px;color:#ddd">Copy a link, then tap Paste and save.</div><div class="r" style="gap:8px"><button class="chip" data-go="7">Paste and save</button><button class="chip n" data-go="4">Open app</button></div></div>
+<div id="n2" class="card col hid" style="background:#3A3835;border-color:#3A3835;color:#fff;gap:8px"><div class="r" style="font-size:12px;color:#ddd"><b style="color:#fff">Claybank</b>· now</div><div class="t">Saving: Creamy garlic pasta</div><div style="font-size:13px;color:#ddd">Step 2 of 3: Transcribing</div><div class="pg"><i id="nb2"></i></div></div>
+</section>
+</div></div>
+
+<aside class="panel">
+<h1>Claybank workflow</h1>
+<div class="cap"><span id="cn">Step 1 of 14</span><b id="ct2"></b><span id="cd"></span><span id="cg" style="color:var(--acc);font-weight:650"></span></div>
+<div class="prog"><i id="pr"></i></div>
+<div class="ctl"><button id="pv">Back</button><button class="pp" id="pp">Pause</button><button id="nx">Next</button></div>
+<div class="steps" id="sl"></div>
+<div class="note">Tap anything inside the phone to try it. The tour pauses when you do.</div>
+</aside>
+</main>
+<script>
+const SC=[0,1,2,3,11,12,4,3,5,6,7,8,9,10];
+const HOLD=[2400,2800,2800,3400,5400,5000,5000,4200,3400,3000,3000,4400,5200,3000];
+const C=[["Splash","Brand moment while the library opens. A progress bar shows loading.","Status · Aesthetic"],["Onboarding","Three short steps teach one habit: share to save. Skip is always visible.","Status · Memory"],["Sign in","Social sign-in first, email second. Fewer fields means fewer errors.","Emulate"],["Inbox","See what is processing, resume where you stopped, and review AI sorting in one tap.","Status · Memory · Emulate"],["Add link, in-app","Tap + on the Inbox. The clipboard link is offered, a folder is suggested, then save. Plain Flet controls only.","Memory · Status"],["Notification","A persistent notification: copy a link, then tap Paste and save. Progress shows in the notification shade.","Status · Memory"],["Floating bubble","Copy a link in Instagram, then tap the bubble to save it. Needs a custom Flet extension, so it is phase 2.","Memory · Status"],["Processing","The new save appears in the Inbox at once. Progress shows until it is sorted.","Status"],["Item","Each save opens as one note, like Obsidian: properties, overview, steps, links and transcript. Tap Edit to change the Markdown. No video is stored.","Status · Memory"],["Folders","Cover collages and update times help you recognize folders without reading.","Emulate · Status"],["Folder view","Breadcrumb, sub-folders and a Resume banner.","Status · Memory"],["Search","Recent searches help recall. Results show why each item matched.","Memory · Emulate"],["Ask","Chat is scoped to a folder. Answers cite the saves they used.","Memory · Status"],["Settings","Sync state is visible. Videos are never saved: text only.","Status"]];
+const $=id=>document.getElementById(id);
+const tabs=[["inbox","Inbox",3],["folder","Folders",9],["search","Search",11],["chat","Ask",12],["gear","Settings",13]];
+document.querySelectorAll(".nav").forEach(n=>{const a=+n.dataset.tab;n.innerHTML=tabs.map((t,i)=>`<button data-go="${t[2]}" class="${i==a?"on":""}"${i==a?' aria-current="page"':""}><svg class="ic"><use href="#i-${t[0]}"/></svg>${t[1]}</button>`).join("")});
+$("sl").innerHTML=C.map((c,i)=>`<button data-go="${i}">${i+1} ${c[0]}</button>`).join("");
+let cur=-1,playing=!matchMedia("(prefers-reduced-motion: reduce)").matches,T=[],tm;
+const later=(f,ms)=>T.push(setTimeout(f,ms));
+function fit(){const s=Math.min(1,(innerWidth-40)/390,(innerHeight*(innerWidth<760?.75:.94))/844);$("box").style.width=390*s+"px";$("box").style.height=844*s+"px";$("phone").style.transform=`scale(${s})`}
+function enter(i){T.forEach(clearTimeout);T=[];if(i==8&&editing)setEdit(false);if(i==4){const s=$("sh2"),q=$("lk"),w="instagram.com/reel/Cx9...";s.classList.remove("up");q.textContent="";later(()=>s.classList.add("up"),150);[...w].forEach((_,k)=>later(()=>q.textContent=w.slice(0,k+1),900+k*50))}
+if(i==5){const n=$("n2"),b=$("nb2");n.classList.add("hid");n.classList.remove("show");b.style.transition="none";b.style.width="0";later(()=>{n.classList.remove("hid");n.classList.add("show");b.offsetWidth;b.style.transition="width 2s linear";b.style.width="100%"},1800)}
+ if(i==0){const b=$("b0");b.style.transition="none";b.style.width="0";b.offsetWidth;b.style.transition="";later(()=>b.style.width="100%",50)}
+ if(i==3){$("nc").classList.add("hid");$("pl").textContent="2 processing"}
+ if(i==6){const s=$("sh");s.classList.remove("up");["t1","t2","t3"].forEach(x=>$(x).classList.remove("done"));later(()=>s.classList.add("up"),150);[1,2,3].forEach(k=>later(()=>$("t"+k).classList.add("done"),700+k*1000))}
+ if(i==7){const n=$("nc"),b=$("nb");n.classList.remove("hid","show");n.offsetWidth;n.classList.add("show");$("pl").textContent="3 processing";b.style.transition="none";b.style.width="0";b.offsetWidth;b.style.transition="";$("nt").textContent="Transcribing";later(()=>b.style.width="100%",100);later(()=>{$("nt").textContent="Sorted: Cooking · 94% sure";$("pl").textContent="2 processing"},2500)}
+ if(i==11){const q=$("q"),r=$("res"),w="pasta video with creamy sauce";q.textContent="";r.classList.remove("show");[...w].forEach((_,k)=>later(()=>q.textContent=w.slice(0,k+1),400+k*55));later(()=>r.classList.add("show"),400+w.length*55+300)}
+ if(i==12){["u","dt","ai"].forEach(x=>$(x).classList.add("hid"));later(()=>{$("u").classList.remove("hid");$("u").classList.add("show")},400);later(()=>{$("dt").classList.remove("hid");$("dt").classList.add("show")},1200);later(()=>{$("dt").classList.add("hid");$("ai").classList.remove("hid");$("ai").classList.add("show")},2800)}
+}
+function go(i,manual){clearTimeout(tm);i=(i+14)%14;if(manual)playing=false;
+ const ns=document.getElementById("s"+SC[i]),os=cur>=0?document.getElementById("s"+SC[cur]):null;
+ if(os&&os!==ns){os.classList.remove("on");os.classList.add("left")}
+ ns.classList.remove("left");ns.classList.add("on");cur=i;
+ $("cn").textContent=`Step ${i+1} of 14`;$("ct2").textContent=C[i][0];$("cd").textContent=C[i][1];$("cg").textContent=C[i][2];
+ $("pr").style.width=((i+1)/14*100)+"%";
+ document.querySelectorAll("#sl button").forEach((b,k)=>{b.classList.toggle("on",k==i)});
+ $("pp").textContent=playing?"Pause":"Play";
+ enter(i);
+ if(playing)tm=setTimeout(()=>go(i+1),HOLD[i]);
+}
+document.addEventListener("click",e=>{
+ if(e.target.closest("#eb")){setEdit(!editing);return}if(e.target.closest("#ob")&&editing){setEdit(false);return}const ni=e.target.closest("[data-ins]");if(ni){ins(ni.dataset.ins);return}
+ const g=e.target.closest("[data-go]");if(g){go(+g.dataset.go,true);return}
+ const k=e.target.closest(".ck");if(k){k.classList.toggle("on");return}
+ const t=e.target.closest(".tg");if(t){t.classList.toggle("on");t.setAttribute("aria-checked",t.classList.contains("on"))}
+});
+const SRC=`---
+source: Instagram
+channel: @chefmara
+channel_id: UC8xK2…q9
+video_url: instagram.com/reel/Cx9...
+genre: Cooking, recipe
+duration: 0:58
+published: 2026-10-03
+saved: 2026-10-28
+category: Cooking / Pasta (92% sure)
+tags: #cooking #pasta #dinner
+---
+# Creamy garlic pasta
+## Overview
+A 20 minute pasta with a garlic cream sauce. The creator uses five ingredients and one pan.
+## Key points
+- Salt the water well
+- Fry garlic on low heat
+- Add cream last, then pasta water
+## Steps
+- [x] Boil pasta
+- [ ] Fry garlic
+- [ ] Add cream
+## Links mentioned
+- chefmara.example/garlic-pasta (description)
+- shop.example/pan (spoken at 0:12)
+- @chefmara (profile)
+## Transcript
+> 0:08 Start with well salted water.
+> 0:42 Now add the cream...
+## Related
+One pot pasta · Sauce basics`;
+let editing=false,src=SRC;
+function render(t){const L=t.replace(/\r/g,"").split("\n"),o=[];let i=0,fm="";const esc=x=>x.replace(/&/g,"&amp;").replace(/</g,"&lt;"),A="color:var(--acc);text-decoration:underline",inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\[(.+?)\]\((.+?)\)/g,`<span style="${A}">$1</span>`).replace(/(^|\s)(#[a-z]\w*)/gi,'$1<span style="color:var(--acc)">$2</span>');
+if(L[0]==="---"){let r="";i=1;for(;i<L.length&&L[i]!=="---";i++){const k=L[i].indexOf(":");if(k>0){const key=L[i].slice(0,k).trim(),v=L[i].slice(k+1).trim();r+=`<span style="color:var(--mut)">${esc(key)}</span><span${key==="video_url"?` style="${A}"`:""}>${inl(v)}</span>`}}i++;fm=`<div style="font-size:12px;color:var(--mut);margin-bottom:4px">Properties</div><div style="display:grid;grid-template-columns:96px 1fr;gap:3px 8px;font-size:12.5px;padding-bottom:10px;border-bottom:1px solid var(--line)">${r}</div>`}
+let ul=[],bq=[];const fl=()=>{if(ul.length){o.push(`<ul style="margin:0;padding-left:20px">${ul.join("")}</ul>`);ul=[]}if(bq.length){o.push(`<blockquote style="margin:0;padding-left:10px;border-left:3px solid var(--line);color:var(--mut)">${bq.join("<br>")}</blockquote>`);bq=[]}};
+for(;i<L.length;i++){const l=L[i];let x;
+if(x=l.match(/^- \[( |x)\] (.*)/i)){fl();o.push(`<button class="ck${x[1]!==" "?" on":""}"><i></i>${inl(x[2])}</button>`)}
+else if(x=l.match(/^- (.*)/)){if(bq.length)fl();ul.push(`<li>${inl(x[1])}</li>`)}
+else if(x=l.match(/^> ?(.*)/)){if(ul.length)fl();bq.push(inl(x[1]))}
+else{fl();if(l.startsWith("## "))o.push(`<h2 style="font-size:17px;margin:14px 0 4px">${inl(l.slice(3))}</h2>`);else if(l.startsWith("# "))o.push(`<h1 style="font-size:26px;margin:14px 0 6px">${inl(l.slice(2))}</h1>`);else if(l.trim())o.push(`<p style="margin:0">${inl(l)}</p>`)}}
+fl();return `<div style="padding:0 2px 8px;font-size:14px;line-height:1.55;color:var(--ink)">${fm}${o.join("")}</div>`}
+function setEdit(on){if(on){playing=false;clearTimeout(tm);$("pp").textContent="Play";$("ta").value=src}else{src=$("ta").value;$("rd").innerHTML=render(src)}editing=on;$("rd").classList.toggle("hid",on);$("ed").style.display=on?"flex":"none";$("eb").textContent=on?"Done":"Edit";$("ob").textContent=on?"Save note":"Open original video"}
+function ins(k){const t=$("ta"),s=t.selectionStart,e=t.selectionEnd,v=t.value,ls=v.lastIndexOf("\n",s-1)+1;if(k==="b")t.setRangeText("**"+v.slice(s,e)+"**",s,e,"end");else if(k==="l")t.setRangeText("["+(v.slice(s,e)||"text")+"](https://example.com)",s,e,"end");else t.setRangeText({h:"## ",u:"- ",t:"- [ ] "}[k],ls,ls,"end");t.focus()}
+$("rd").innerHTML=render(src);
+$("pv").onclick=()=>go(cur-1,true);$("nx").onclick=()=>go(cur+1,true);
+$("pp").onclick=()=>{playing=!playing;go(cur)};
+addEventListener("resize",fit);fit();go(0);
+</script>
+</body>
+</html>
