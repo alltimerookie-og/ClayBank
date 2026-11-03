@@ -10,7 +10,6 @@ dependencies = [
 ]
 
 [tool.pyrefly]
-python-interpreter-path = "C:/Users/Elightbook 840/AppData/Local/Programs/Python/Python312/python.exe"
 search-path = [".", "app"]
 
 [tool.pytest.ini_options]

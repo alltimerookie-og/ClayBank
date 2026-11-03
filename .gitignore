@@ -1,1 +1,11 @@
 .playwright-mcp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.env
+demo/
+.pyrefly/
+.pyright/
