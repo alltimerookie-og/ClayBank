@@ -11,8 +11,8 @@ One link = one Save + one note + one job. Share now, find later. Text-only, vide
 | Item | Link |
 | --- | --- |
 | Project guide | `README.md` |
-| Developer setup | `Docs/SETUP.md` — clone, venv, install, run, checks |
-| Manual testing guide | `Docs/MANUAL_TESTING.md` — step-by-step screen workflows |
+| Developer setup | `Docs/SETUP.md` — clone, venv, install, desktop run, Android live preview, checks |
+| Manual testing guide | `Docs/MANUAL_TESTING.md` — step-by-step screen workflows & Android mobile live testing |
 | Architecture | `Docs/Architecture.md` |
 | Data model | `Docs/DataModel.md` + `Docs/db/` |
 | Contract | `Docs/api/README.md` + `openapi.yaml` + `schemas/` |
@@ -29,9 +29,9 @@ One link = one Save + one note + one job. Share now, find later. Text-only, vide
 
 Prototype is **interactive design truth** (`Docs/Phases.md:104`) - not a claim that every screen is fully implemented. Unfinished screens are represented by the prototype.
 
-The `aqib` branch may contain developer documentation updates after the historical tagged commit. The release tag `claybank-submission-v1` remains on `763d07e38c471aa36ba9cbadc13c3ce1d6d6849b` and is not moved by later docs-only commits.
+The `aqib` branch contains developer setup and runnable entry point improvements (`main.py`, `pyproject.toml`, `Docs/SETUP.md`, `Docs/MANUAL_TESTING.md`) committed after the historical submission tag to provide immediate runnable convenience for desktop and Android Flet live testing. The release tag `claybank-submission-v1` remains pinned to commit `763d07e38c471aa36ba9cbadc13c3ce1d6d6849b` and is not moved or altered by these post-tag development updates.
 
-Developer docs: `Docs/SETUP.md` for commands and `Docs/MANUAL_TESTING.md` for exact manual workflows; both are later docs past the historical tag and do not change the tagged tree.
+Developer docs: `Docs/SETUP.md` for commands and `Docs/MANUAL_TESTING.md` for exact manual workflows and Android companion app testing.
 
 ## Run and verify
 
@@ -40,7 +40,8 @@ python Docs/api/test_contract.py
 python Docs/db/test_schema.py
 python -m pytest -q
 python -m compileall app tests
-flet run
+flet run main.py
+flet run --android main.py
 ```
 
 ## Phase completion
@@ -56,7 +57,7 @@ flet run
 | 6 Search+Ask | Done (frontend; retrieval fixture-backed) |
 | 7 Sync+Settings | Done (frontend; live sync is backend) |
 | 8 Capture surfaces | **Frontend accepted, native spike INCONCLUSIVE** |
-| 9 Submission package | In progress (this index; video + tag pending) |
+| 9 Submission package | In progress (Tag `claybank-submission-v1` created; video pending) |
 
 ## Submission checklist
 
@@ -65,10 +66,10 @@ flet run
 - [x] Setup + `.env.example` placeholders
 - [x] Test evidence for this SHA (contract + schema + 374 pytest + compile)
 - [x] Limitations with Phase 8 INCONCLUSIVE disclosure
+- [x] Tag `claybank-submission-v1` created at commit `763d07e38c471aa36ba9cbadc13c3ce1d6d6849b`
 - [ ] Demo recording + screenshots (see `Docs/DEMO_SCRIPT.md`) - pending user recording
 - [ ] `Docs/Memory.md` close-out
 - [ ] Release hygiene final check
-- [ ] Tag `claybank-submission-v1` - awaiting user authorization after this report
 
 ## Honest dependencies
 

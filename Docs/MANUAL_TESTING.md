@@ -7,12 +7,45 @@ See also: `Docs/SETUP.md` for install/run, `Docs/LIMITATIONS.md` for claims matr
 ## A. Getting started
 
 1. **Clone `aqib`:** `git clone --branch aqib https://github.com/alltimerookie-og/ClayBank.git && cd ClayBank`
-2. **Create venv:** `python -m venv .venv && .\.venv\Scripts\Activate.ps1` (Windows) or `source .venv/bin/activate` (macOS/Linux).
-3. **Install:** `python -m pip install --upgrade pip && pip install -e . && pip install jsonschema>=4.21 referencing pytest`
-4. **Start:** `flet run` — desktop window or browser tab opens. Close it or `Ctrl+C` to stop.
-5. **Navigate four tabs:** Bottom `SharedNavigationBar` (`app/shell/nav.py: TAB_COUNT = 4`): **Inbox (0) → Folders (1) → Search (2) → Settings (3)**. **Ask is not a tab** — opened from Search ("Ask your library") or a folder `...` menu (`app/app.py:on_ask_query`).
+2. **Create / Activate venv:** `python -m venv .venv && .\.venv\Scripts\Activate.ps1` (Windows) or `source .venv/bin/activate` (macOS/Linux). (Reuse existing `.venv` if already created).
+3. **Install:** `python -m pip install --upgrade pip && python -m pip install -e . && python -m pip install "jsonschema>=4.21" referencing pytest`
+4. **Start desktop preview:** `flet run main.py` — desktop window or browser tab opens. Close it or `Ctrl+C` to stop.
+5. **Start Android live preview:** `flet run --android main.py` — starts development server and outputs a terminal QR code for the mobile Flet app.
+6. **Navigate four tabs:** Bottom `SharedNavigationBar` (`app/shell/nav.py: TAB_COUNT = 4`): **Inbox (0) → Folders (1) → Search (2) → Settings (3)**. **Ask is not a tab** — opened from Search ("Ask your library") or a folder `...` menu (`app/app.py:on_ask_query`).
 
-## B. Application navigation
+## B. Android live testing with Flet
+
+You can run and test ClayBank live on your physical Android smartphone using the official Flet app:
+
+1. **Prerequisites:**
+   - Android smartphone with the official **Flet** app installed from Google Play Store.
+   - Development PC and Android phone connected to the exact same local Wi-Fi network.
+2. **Launch live server:**
+   On your PC terminal, execute:
+   ```powershell
+   flet run --android main.py
+   ```
+   *(Note: On Windows PowerShell, if ASCII QR rendering fails with a charmap encoding error, run `$env:PYTHONIOENCODING="utf-8"` before launching).*
+3. **QR Code Scanning:**
+   - Look at the terminal output on your development PC: Flet renders an ASCII QR code and displays a local network URL (e.g., `http://192.168.1.X:8550`).
+   - Open the **Flet** app on your Android device.
+   - Tap the camera/scanner icon and point the camera at your PC screen to scan the QR code (or manually input the URL if preferred).
+4. **Live interaction verification:**
+   - Verify that ClayBank boots immediately and transitions to the application shell (`AppShellLayout`).
+   - Test bottom navigation switching between the four tabs: Inbox, Folders, Search, and Settings.
+   - Tap the `+` action button in the Inbox header to verify that the `AddLinkPasteSheet` modal bottom sheet slides up smoothly.
+   - Verify mobile touch responsiveness, scrolling performance, and button tap feedback.
+5. **What to test on mobile hardware:**
+   - **Touch targets & sheets:** Check tap target sizes, sheet dismiss gestures, and modal scrolling behavior.
+   - **Navigation bar scaling:** Verify that `SharedNavigationBar` icons and labels fit mobile viewports across portrait orientations.
+   - **Settings toggles:** Toggle switches (auto-sort, Wi-Fi processing) and select chat models (Cloud / Local dropdown).
+   - **Manual paste & note reading:** Paste a sample link or view fixture-backed notes and verify typography scaling and readability.
+6. **Limitations on Flet Android runner:**
+   - The Flet app runner executes frontend Python UI within its cross-platform client runtime container.
+   - It does **not** test standalone compiled APK installation.
+   - Native device capabilities such as OS-level background service execution, `POST_NOTIFICATIONS` permission dialogs, system tray notification delivery, background clipboard sniffing, and on-device GGUF inference runtimes require dedicated Android build pipelines and are unverified on device.
+
+## C. Application navigation
 
 | Tab | Class | Notes |
 | --- | --- | --- |
@@ -21,9 +54,9 @@ See also: `Docs/SETUP.md` for install/run, `Docs/LIMITATIONS.md` for claims matr
 | **Search** | `app/views/search/search_view.py` | Query field, platform/time chips, result cards with match reason + fragment + jump target. |
 | **Settings** | `app/views/settings/settings_view.py` | Profile + sync chip, chat model card, storage, toggles, privacy banner. |
 
-Boot order in `app/app.py: ClayBankApp` is Splash → Onboarding (if `has_seen_onboarding==false`) → `AppShellLayout`. `has_seen_onboarding` and initial saves/suggestions/folders are injected for tests; the normal user starts with onboarding visible.
+Boot order in `app/app.py: ClayBankApp` is Splash → Onboarding (if `has_seen_onboarding==false`) → `AppShellLayout`. In `main.py`, `has_seen_onboarding=True` and `app.transition_to_shell()` bypass the splash/onboarding screen for direct developer inspection.
 
-## C. Manual workflow checklist
+## D. Manual workflow checklist
 
 ### Inbox and capture
 
@@ -38,7 +71,7 @@ Lives in `app/views/paste_sheet.py: AddLinkPasteSheet` + `app/views/inbox_view.p
 7. Clipboard flow: with `clipboard_reader` wired, sheet auto-prefills when visible. Clear with X → `clear_url` resets `source_app` to `manual` and hides banner.
 8. Notification/share intents: `app/app.py: handle_external_capture` forwards `ACTION_PASTE_AND_SAVE` / `ACTION_SHARE_TARGET` / `ACTION_OPEN_APP` via `NotificationCoordinator`. When routed, `open_paste_sheet(initial_url, source_app=...)` pre-fills the sheet — verify URL field and that submit uses that `source_app`.
 
-**Expected:** No network is hit in the default manual run. Saves appear via the callback return or fixture path (see §E).
+**Expected:** No network is hit in the default manual run. Saves appear via the callback return or fixture path (see §F).
 
 ### Notes
 
@@ -103,7 +136,7 @@ Without a live backend, `app/app.py:handle_search_query` returns fixture-derived
 3. **Open app** → opens the app without a pre-fill.
 4. Do not treat this as a real `flet-android-notifications` delivery. Native permission, foreground service, and intent routing are unverified on device (see `Docs/LIMITATIONS.md`).
 
-## D. Offline and error-state testing
+## E. Offline and error-state testing
 
 | State | How to trigger/inspect | Expected frontend behavior |
 | --- | --- | --- |
@@ -119,7 +152,7 @@ Without a live backend, `app/app.py:handle_search_query` returns fixture-derived
 
 All of the above are frontend-rendered states — no live server required.
 
-## E. Test data and fixture behavior
+## F. Test data and fixture behavior
 
 | Topic | Location / Behavior |
 | --- | --- |
@@ -131,7 +164,7 @@ All of the above are frontend-rendered states — no live server required.
 | **Requires API responses** | Persistence beyond the process, canonicalization, real duplicate check, real hybrid results, real LLM answer generation, real cursor pull/push — all need the FastAPI backend from `Docs/api/openapi.yaml`. |
 | **Seed accounts** | None. Hackathon shape uses `DEV_TOKEN` + `X-Device-Id` middleware (`Docs/adr/0006`). Placeholders are in `.env.example`. |
 
-## F. Backend integration boundary
+## G. Backend integration boundary
 
 Inspect `Docs/api/openapi.yaml` (13 paths) and `app/app.py` callback seams (`on_*`). Frontend validates shapes against `Docs/api/schemas/*.json`.
 
@@ -150,7 +183,7 @@ Inspect `Docs/api/openapi.yaml` (13 paths) and `app/app.py` callback seams (`on_
 
 Never invent an endpoint or payload. Single source is `Docs/api/schemas/*.json`; every path is in `Docs/api/openapi.yaml`.
 
-## G. Device-runtime boundary
+## H. Device-runtime boundary
 
 - **Android notification service is not verified.** `NotificationCoordinator` + `QuickSaveNotificationCard` render a desktop preview. The **native Android spike is INCONCLUSIVE** (`Docs/Phases.md §8`).
 - **Notification permission (`POST_NOTIFICATIONS`) is not verified** on a real Android device. In this build the coordinator gates on `has_completed_first_save`; on device it would be `POST_NOTIFICATIONS`.
@@ -161,7 +194,7 @@ Never invent an endpoint or payload. Single source is `Docs/api/schemas/*.json`;
 
 All unverified items are **Device-runtime dependent** in `Docs/LIMITATIONS.md`.
 
-## H. Known limitations
+## I. Known limitations
 
 Full matrix: `Docs/LIMITATIONS.md`. Evidence: `Docs/TEST_REPORT.md`.
 
@@ -174,4 +207,3 @@ Full matrix: `Docs/LIMITATIONS.md`. Evidence: `Docs/TEST_REPORT.md`.
 ---
 
 *Last validated:* `Docs/TEST_REPORT.md` generation `2026-11-03` (`Python 3.12.10`, `Flet 1.0.5`, `FastAPI 0.162.0` host) — re-run `python Docs/api/test_contract.py && python Docs/db/test_schema.py && python -m pytest -q` to confirm green.
-

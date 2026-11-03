@@ -2,7 +2,7 @@
 
 > Share it now. Find it later. — A save-everything app: capture any link today, find any moment in it later.
 
-**Status:** Frontend implemented (Phases 2 + 4 + 5 + 6 + 7 + 8-preview) · Contracts and schemas locked · Backend / native runtime pending. Phase 9 submission package in preparation.
+**Status:** Frontend implemented (Phases 2 + 4 + 5 + 6 + 7 + 8-preview) · Contracts and schemas locked · Backend / native runtime pending. Release tag `claybank-submission-v1` exists at `763d07e38c471aa36ba9cbadc13c3ce1d6d6849b` (demo video recording pending).
 
 `Docs/Memory.md` is the ground truth (decision log). Prototype v2 (`PrototypingFiles/Claybank_ Interactive Workflow v2.html`) wins on look; the docs win on meaning. Submission index: `Docs/SUBMISSION.md`.
 
@@ -11,6 +11,7 @@
 ```
 ClayBank/
 ├── README.md                        ← this index
+├── main.py                          ← Flet application development entry point
 ├── Docs/                            ← product, architecture, and contract
 │   ├── Memory.md                    ← GROUND TRUTH · decision log + doc inventory + next steps
 │   ├── PRD.md                       ← product requirements (what & why)
@@ -53,18 +54,19 @@ ClayBank/
 
 ## Quick Start
 
-- **Setup:** `Docs/SETUP.md`
-- **Manual testing:** `Docs/MANUAL_TESTING.md`
+- **Setup & Install:** `Docs/SETUP.md`
+- **Manual Testing & Android Live Preview:** `Docs/MANUAL_TESTING.md`
 - **Automated tests:** `Docs/TEST_REPORT.md`
 - **Limitations:** `Docs/LIMITATIONS.md`
-- **Backend integration:** `Docs/MANUAL_TESTING.md#F` + `Docs/api/openapi.yaml`
-- **Device-runtime boundary:** `Docs/MANUAL_TESTING.md#G` + `Docs/LIMITATIONS.md`
+- **Backend integration:** `Docs/MANUAL_TESTING.md#G` + `Docs/api/openapi.yaml`
+- **Device-runtime boundary:** `Docs/MANUAL_TESTING.md#H` + `Docs/LIMITATIONS.md`
 
 ## Entry points
 
 | I want to…                          | Read                                         |
 | ----------------------------------- | -------------------------------------------- |
 | Clone, install, and run locally     | `Docs/SETUP.md` → `Docs/MANUAL_TESTING.md`   |
+| Run Android live preview on phone   | `Docs/SETUP.md#5` → `Docs/MANUAL_TESTING.md#B` |
 | Manually test every screen          | `Docs/MANUAL_TESTING.md`                     |
 | Know why anything is the way it is  | `Docs/Memory.md` → `Docs/adr/`               |
 | Build the backend                   | `Docs/Architecture.md` + `Docs/api/`         |
@@ -103,12 +105,17 @@ cd ClayBank
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e .
-pip install jsonschema>=4.21 referencing pytest
-flet run
+python -m pip install -e .
+python -m pip install "jsonschema>=4.21" referencing pytest
+
+# 1. Desktop preview launch
+flet run main.py
+
+# 2. Android live preview launch (scan terminal QR code with Flet Android companion app)
+flet run --android main.py
 ```
 
-Full commands for Windows/macOS/Linux: `Docs/SETUP.md`. Step-by-step screen checks: `Docs/MANUAL_TESTING.md`. No backend or device runtime is required for the checks in those guides.
+Full commands for Windows/macOS/Linux: `Docs/SETUP.md`. Step-by-step screen and Android mobile checks: `Docs/MANUAL_TESTING.md`. No backend or device runtime is required for the checks in those guides.
 
 Secrets are placeholders (`DEV_TOKEN`, `X-Device-Id` per `Docs/adr/0006`); see `.env.example`.
 
@@ -125,11 +132,11 @@ Evidence for this SHA: `Docs/TEST_REPORT.md`. Prototype (design truth): `Prototy
 
 ## Backend integration status
 
-No live FastAPI backend is shipped in this repo. Capture, extraction, cloud note generation, FTS5+faiss indexing, Ask retrieval, folder/tag persistence, and sync cursor pull/push all run fixture-backed when `ClayBankApp`'s `on_*` callbacks are not wired. The API contract (`Docs/api/openapi.yaml` + `Docs/api/schemas/*.json`) is the single source for field names/enums; `Docs/MANUAL_TESTING.md#F` maps each frontend seam to its documented callback and how to verify it once the main developer wires a live backend.
+No live FastAPI backend is shipped in this repo. Capture, extraction, cloud note generation, FTS5+faiss indexing, Ask retrieval, folder/tag persistence, and sync cursor pull/push all run fixture-backed when `ClayBankApp`'s `on_*` callbacks are not wired. The API contract (`Docs/api/openapi.yaml` + `Docs/api/schemas/*.json`) is the single source for field names/enums; `Docs/MANUAL_TESTING.md#G` maps each frontend seam to its documented callback and how to verify it once the main developer wires a live backend.
 
 ## Device-runtime limitations
 
-Native notification delivery, `POST_NOTIFICATIONS` permission, OS share-target, background clipboard reads (forbidden on Android 10+), and local GGUF inference are **not verified** on device. The In-app notification preview (`app/views/capture/`) is explicitly a **desktop preview, not native delivery**. See `Docs/MANUAL_TESTING.md#G` and `Docs/LIMITATIONS.md` for the full disclosure.
+Native notification delivery, `POST_NOTIFICATIONS` permission, OS share-target, background clipboard reads (forbidden on Android 10+), and local GGUF inference are **not verified** on device. The In-app notification preview (`app/views/capture/`) is explicitly a **desktop preview, not native delivery**. See `Docs/MANUAL_TESTING.md#H` and `Docs/LIMITATIONS.md` for the full disclosure.
 
 ## Automated Tests
 
@@ -149,4 +156,4 @@ Native notification delivery, `POST_NOTIFICATIONS` permission, OS share-target, 
 | 6 Search + Ask | Frontend done; retrieval is fixture-backed |
 | 7 Sync + Settings | Frontend done; live sync is backend-dependent |
 | 8 Spike-gated capture surfaces | **Frontend accepted, native spike INCONCLUSIVE** — paste sheet is shipped path |
-| 9 Remote submission package | **In progress** — video + tag pending user authorization |
+| 9 Remote submission package | **Tag `claybank-submission-v1` created** (`763d07e38c471aa36ba9cbadc13c3ce1d6d6849b`); video pending recording |
