@@ -56,6 +56,7 @@ ClayBank/
 │   ├── seed_demo.py                 ← demo library seed + wipe (see Setup)
 │   ├── models/                      ← embedding weights (gitignored; downloaded on first use)
 │   └── data/                        ← dev SQLite + faiss index (gitignored; rebuilt from DDL)
+├── scripts_live_e2e.py              ← opt-in live E2E (needs server on :8000; see Setup)
 └── PrototypingFiles/                ← interactive HTML prototypes (open in a browser)
     ├── Claybank_ Interactive Workflow v2.html   ← UI TRUTH · 13-step tour of the current product
     ├── Claybank App Wireframes.html             ← 14-screen board with Flet widget annotations
@@ -100,7 +101,7 @@ uv run Backend/seed_demo.py --wipe         # remove demo rows, keep schema
 Live end-to-end (needs the server on :8000):
 
 ```bash
-uv run TempDocs\live_e2e.py
+uv run scripts_live_e2e.py
 ```
 
 ## Entry points
