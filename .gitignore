@@ -4,6 +4,44 @@
 Docs/Memory.md
 Docs/adr/
 
-.venv/
-
+# Scratch notes (kept locally, not published)
 TempDocs/
+
+# Local runtime data: dev SQLite DB is rebuilt from Docs/db/*.sql on startup
+data/
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Local secrets / env overrides
+.env
+.env.*
+!.env.example
+
+# Flet build outputs (ADR 0001: app/ is the Flet shell, built with `flet build`)
+app/build/
+*.apk
+*.aab
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

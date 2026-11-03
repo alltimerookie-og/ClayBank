@@ -7,7 +7,7 @@
 
 ## 1. Vision
 
-Claybank is a personal **save-for-later** app for links. The promise is the prototype's: **share it now, find it later**. One link becomes one **Save**; each Save is one **Markdown note** the user can read, edit, search, and ask questions about — "like Obsidian for saved videos", without any media stored.
+Claybank is a personal **save-for-later** app for links. The promise is the prototype's: **share it now, find it later**. One link becomes one **Save**; each Save is one **Markdown note** the user can read, edit, search, and ask questions about — "like Obsidian for saved videos", without keeping any media after processing.
 
 Saving must never fail and never block on organization. Everything else is enrichment layered on top of a durable capture.
 
@@ -18,7 +18,7 @@ Saving must never fail and never block on organization. Everything else is enric
 - People who organize lightly (a few folders, occasional tags) and mostly rely on search.
 - Personal, single-user-per-account product. No team spaces, no public sharing.
 
-The prototype's hard line stands: **videos are never saved — text only.** This is a privacy feature, not a limitation.
+The prototype's hard line stands: **videos are never kept — text only.** This is a privacy feature, not a limitation.
 
 ## 3. Product principles
 
@@ -53,7 +53,7 @@ Platforms in scope: Instagram, Facebook, TikTok, YouTube (public) and arbitrary 
 ### 5.2 Processing (`queued → extracting → transcribing → analyzing → sorting → ready`)
 - Stages are individually skippable/failed; a save is visible from the instant of capture.
 - Tier 1 deterministic extraction: yt-dlp (video), trafilatura (articles).
-- ASR: cloud default (Muse Voice Transcribe), `faster-whisper small` local fallback; 10-minute duration cap.
+- ASR: multimodal transcription/visual description only; 10-minute duration cap.
 - Note generation: cloud LLM, always. Guarantees Overview + Key points + Links; other sections are dynamic.
 - Sorting: one `suggested_folder {path, confidence}`; above threshold → auto-file (undoable); below → review queue.
 - Budget: 30 s target, 2 min cap, streamed per-stage status in the Inbox.

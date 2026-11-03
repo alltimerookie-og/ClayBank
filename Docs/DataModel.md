@@ -60,7 +60,7 @@ No color, no icon, no cover representation at MVP (post-hackathon). No `cover_co
 | `overview` | text | LLM-guaranteed summary |
 | `key_points` | json | list, LLM-guaranteed |
 | `links` | json | links mentioned, with anchor text |
-| `transcript` | text·null | text only; **audio/video never persisted** |
+| `transcript` | text·null | text only; **audio/video never retained after processing** |
 | `created_at / updated_at` | time | |
 
 **Note structure (ADR 0005):** frontmatter + `# Title` + `## Overview` + `## Key points` (guaranteed) + dynamic sections (Steps, Links mentioned, Transcript excerpt, Related — optional). The user may **delete any section**; the parser tolerates missing sections; the section index (§4) is rebuilt on write.

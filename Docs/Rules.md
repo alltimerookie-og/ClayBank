@@ -1,11 +1,11 @@
 # Claybank — Rules
 
-**Status:** Locked (post-Phase 0 grilling, 2026-10-31)
+**Status:** Locked (post-Phase 0 grilling, 2026-10-31); transient-media processing amended 2026-11-03.
 **Purpose:** hard boundaries and hard no's for any agent building Claybank. When a decision here and a convenient shortcut disagree, this file wins.
 
 ## 1. What Claybank is
 
-A personal save-and-note app for links to short video and other web content. One save = one Markdown note. The app organizes (folders + tags + suggestions), searches (keyword + semantic, with match reasons), and answers questions scoped to a folder, with citations. The name is **Claybank**. The promise is *share it now, find it later*, and the privacy line is *videos are never saved — text only*.
+A personal save-and-note app for links to short video and other web content. One save = one Markdown note. The app organizes (folders + tags + suggestions), searches (keyword + semantic, with match reasons), and answers questions scoped to a folder, with citations. The name is **Claybank**. The promise is *share it now, find it later*, and the privacy line is *videos are never kept — text only*.
 
 ## 2. Hard yes
 
@@ -23,9 +23,10 @@ A personal save-and-note app for links to short video and other web content. One
 ## 3. Hard no
 
 **Media & extraction**
-- Never persist audio or video — no files, no cache dir left dirty, temp files scrubbed even on failure (ADR 0004).
+- Never keep audio or video after processing — no media library, no playback from stored files, no cache directory left dirty, and transient files are scrubbed in `finally` even on failure (ADR 0004).
+- Transient processing files may exist only while transcription or multimodal analysis is actively running. They must not be part of backups, sync, search indexes, notes, or API responses, and they must be deleted after successful Markdown creation as well as on every failure path.
 - Never turn this into a media manager or player app.
-- Never route ASR or text through a provider tier that trains on user content. **Meta's contributor pricing tier is a hard no** — pay the regular rate or fall back locally.
+- Never route ASR or text through a provider tier that trains on user content. **Meta's contributor pricing tier is a hard no** — use the regular production model.
 - Never ship a scraper that works only by spoofing/attacking platforms; for fragile platforms (Instagram/TikTok/Facebook: cookies, datacenter-IP blocks) document the risk and keep the fallback ladder (ADR 0003). Respect robots-as-intended and platform ToS where they bind us.
 
 **Organization**
@@ -77,7 +78,7 @@ A personal save-and-note app for links to short video and other web content. One
 
 - The screens and flows in the phase match prototype v2.
 - The note model, job states, and folder model stay consistent with `DataModel.md` and `Architecture.md`.
-- "Text only, never save videos" still holds.
+- "Text only, never keep videos" still holds.
 - The contract test is green (fixtures valid against schemas; `contract_version` bumped only deliberately).
 - `Memory.md` records what shipped and what's next.
 
@@ -103,7 +104,7 @@ Style is a contract too. Write for the next reader (usually the next grilling se
 
 **Idioms**
 - `pathlib.Path` for everything filesystem; `enum.StrEnum` for the locked vocabularies (`kind`, `job.state`, `error.code`, `match_reason`) — single definitions imported everywhere; never strings in comparisons at use sites.
-- f-strings, pure data with `dataclass(frozen=True, slots=True)` where types are passed around, generators/lazy iterables over list building when sizes can grow, `contextlib.suppress`/`with` blocks with explicit cleanup — and the rule that **transient media cleanup happens in `finally`/context exits even on failure paths** (ADR 0004 is a code-level rule, not a GC hope).
+- f-strings, pure data with `dataclass(frozen=True, slots=True)` where types are passed around, generators/lazy iterables over list building when sizes can grow, `contextlib.suppress`/`with` blocks with explicit cleanup — and the rule that **transient media cleanup happens in `finally`/context exits on success and failure paths** (ADR 0004 is a code-level rule, not a GC hope).
 - `match`/`case` allowed for kind-dispatch pipelines only; if-elif is fine elsewhere.
 - Exceptions: domain-specific classes grouped in one module, raised at the boundary that knows the code, mapped to `error.code`s in exactly one place (the handler); **bare `except` and blanket-retry are forbidden** — a caught error either repairs, converts to a typed error, or re-raises.
 - Logging via `logging` (module-level `log = logging.getLogger(__name__)`), never `print` in non-CLI code; no logging of transcript bodies or user content in full.

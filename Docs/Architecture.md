@@ -8,7 +8,7 @@
 
 Claybank is a **personal save-and-note app**. The unit of work is a **Save** = one captured link + one Markdown note + one processing job. The wireframes describe mobile-first capture (share, paste, notification), an Inbox processing flow, a folder library, search with match reasons, and folder-scoped Ask.
 
-The product promise **text only, never save videos** fixes most of the architecture before a line of code: no media storage, no transcoding, no blob store. Media streams are processed transiently and discarded end-to-end (`adr/0004`).
+The product promise **text only, never keep videos** fixes most of the architecture before a line of code: no media storage, no transcoding, no blob store. Media streams are processed transiently and discarded end-to-end (`adr/0004`).
 
 ## 2. Architecture style
 
@@ -22,7 +22,7 @@ The product promise **text only, never save videos** fixes most of the architect
 [FastAPI backend] ── authoritative store ── [processing workers]
    extraction (tier 1 / tier 2 stub) · ASR (cloud→local) · LLM (cloud)
         │                                        │
-        └── transient media never persisted ─────┘
+        └── transient media never retained after processing ──┘
 ```
 
 - Writes may happen offline; they queue and replay idempotently. The server rejects stale writes with `409` and preserves both versions.
@@ -38,8 +38,8 @@ The product promise **text only, never save videos** fixes most of the architect
 | Vectors | **faiss-cpu** flat index | index file stored next to the DB; 384-dim |
 | Embeddings | **`intfloat/multilingual-e5-small`** | ONNX Runtime, 118M params, MIT, 100 languages; `query:` / `passage:` input prefixes |
 | Extraction | **yt-dlp** (video) · **trafilatura** (articles) | tier 1 deterministic; fallback chain in `adr/0007` |
-| ASR | **Muse Voice Transcribe** (cloud, default) → **`faster-whisper small`** (local fallback) | language coverage decision — Parakeet Redux rejected (no Bengali/Hindi, no pip path) |
-| Note gen | **Cloud, always** — Meta Model API (`dev.meta.ai`, `/compat/v1`, OpenAI-compatible) | any OpenAI-compatible provider swappable behind one interface; **contributor (training-on-data) tier is a hard no** |
+| ASR | **Multimodal model only** | multimodal transcription/visual description through the configured cloud model; no separate audio STT or local fallback |
+| Note gen | **Cloud, always** — Meta Model API (`api.meta.ai`, `/compat/v1`, OpenAI-compatible) | any OpenAI-compatible provider swappable behind one interface; **contributor (training-on-data) tier is a hard no** |
 | Local chat | **`llama_cpp_python`** in-process | MiniCPM5-2B Q4_K_M (1.56 GB) or Qwen3-1.7B (~1.1 GB), user-picked; CPU-only (`n_ctx 4096`, 4 threads), 8 GB RAM floor, foreground service (`adr/0008`) |
 
 ### 3.1 The AI split (one table, one meaning)
@@ -47,7 +47,7 @@ The product promise **text only, never save videos** fixes most of the architect
 | Stage | Where | Why |
 |---|---|---|
 | Extraction (yt-dlp / trafilatura) | server, network-bound | cannot run on device |
-| Transcription | server; cloud default, `faster-whisper` local fallback | language coverage vs zero infra |
+| Transcription | server; multimodal model only | one cloud transcription path, no local fallback |
 | **Note generation** | **cloud always** | note quality; also keeps "Cloud AI gets the transcript and metadata only" literally true |
 | **Embeddings + index** | **local always** | privacy, instant, offline |
 | **Search** (FTS5 + vectors) | **local always** | offline by definition |
@@ -72,7 +72,7 @@ queued → extracting → transcribing → analyzing → sorting → ready
 ```
 - **extracting (tier 1):** `yt-dlp` for video metadata + captions when present; `trafilatura` for article body. Emits an `ExtractionResult` JSON (one schema, `Docs/api/schemas/extraction-result.json`).
 - **tier 2 (agent rescue) — interface + ADR only in the hackathon:** fires only when a kind's required fields are all absent (video: no title *and* no transcript; article: no body; unknown: no title *and* no body). Caps: 5 tool calls / 45 s. Same `ExtractionResult` schema. Degrades to `unknown` rather than partial writes. `agent_trace` is stored on the job and excluded from sync.
-- **transcribing:** cloud ASR first (Muse Voice Transcribe, ~$0.18/hr) with `faster-whisper small` local fallback for other languages / detected-language gaps. Audio is fetched transiently and discarded after transcription (`adr/0004`).
+- **transcribing:** multimodal transcription/visual description through the configured cloud model. Audio is fetched transiently and discarded after transcription (`adr/0004`).
 - **analyzing (note gen):** cloud LLM with structured output: Overview + Key points + Links guaranteed; other sections dynamic; transcript excerpt appended. Frontmatter facts are written by the system, not the LLM.
 - **sorting:** one `suggested_folder {path, confidence}` from the same embedding used for search; above threshold (config) → auto-file with visible undo; below → `needs_review=true`.
 - **States live on the job, not the note.** Confidence and suggestion live in API metadata, never in note frontmatter.
@@ -121,7 +121,7 @@ Docs/api/         # openapi.yaml, schemas/, fixtures/, contract check
 
 ## 6. Boundaries this architecture must respect
 
-- **No media persists anywhere** — fetch → transcribe → discard, scrub the temp dir on failure too (`adr/0004`).
+- **No media retained after processing** — fetch → transcribe/analyze → discard, scrub the temp dir on success and failure (`adr/0004`).
 - **One note per save; Markdown is truth** — the DB is an index over it; renames are bulk frontmatter rewrites.
 - **Folders are the only container; `kind` is never an organizing axis** (`DataModel.md` invariants).
 - **Match reasons are visible in every search result** — write-time indexing is what makes the prototype's search real.
