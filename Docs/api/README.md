@@ -55,7 +55,7 @@ Error:
 | PUT | `/saves/{save_id}/tags` | `tags-put` | `tag[]` | Flat tags, case-insensitively unique. |
 | GET | `/suggestions` | — | `suggestion` (page) | Cluster-then-propose after ~3 similar saves. |
 | POST | `/suggestions/accept` | `suggestion-accept` | `folder` | **The only** endpoint that creates a system folder. |
-| POST | `/search` | `search-request` | `search-page` | Hybrid FTS5 + faiss; every result explains itself. |
+| GET | `/search` | `search-request` as query parameters | `search-page` | Hybrid FTS5 + faiss; every result explains itself. |
 | POST | `/ask` | `ask-request` | `ask-answer` | Cites the saves it used — citations are mandatory. |
 | GET | `/sync/pull` | — | `sync-pull` | Complete device replica since a cursor. |
 | POST | `/sync/push` | `sync-push` | per-op results | Replays queued offline writes, each op carrying its own `idempotency_key`. |

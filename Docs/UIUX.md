@@ -24,7 +24,7 @@ One page of truth for what each screen **is**, what sits **on** it, and what it 
 | 6 | Item note | `GET /saves/{save_id}` (→ `{save, note, job}`) · `PUT /saves/{id}/note` (`note-put` → `note`) · `PATCH /saves/{id}` (`save-patch` → `save`) · `PUT /saves/{id}/tags` (`tags-put` → `tag[]`) · `POST /saves/{id}/reprocess` (→ `job`) · `DELETE /saves/{id}` (→ `204`) |
 | 7 | Folders | `GET /folders` (→ `folder-page`) · `POST /folders` (`folder-write` → `folder`) · `DELETE /folders/{folder_id}` (→ `204`; members return to Inbox) |
 | 8 | Folder view | `GET /saves?folder_id=` (→ `save-page`) · `PATCH /folders/{folder_id}` (`folder-write` → `folder`) |
-| 9 | Search | `POST /search` (`search-request` → `search-page` of `search-result`) |
+| 9 | Search | `GET /search` (`search-request` as query parameters → `search-page` of `search-result`) |
 | 10 | Ask | `POST /ask` (`ask-request` → `ask-answer`) |
 | 11 | Settings | — (device-local; see §11) |
 | 12 | Processing state | not a page — `job` shape streamed across Inbox card, notification, note header (§12) |
@@ -151,8 +151,8 @@ The per-item endpoints (`PUT /saves/{id}/note` etc.) remain the API shape — di
 
 **Components:** "Ask your library" banner row (`ft.Container` + `ft.Icon` chat → Ask, scoped or everything), `ft.SearchBar` (typed query state), Recent chips (`ft.Chip` neutral), filter chips (`All / YouTube / Instagram / This month`), result cards: thumbnail, title, **match line as text** (`Match in transcript · "add cream"` italic fragment) + jump chip (`ft.Chip` "▶ 0:42") + destination chip (folder/tag) + muted score, `ft.NavigationBar`.
 
-**API:** `POST /search`
-- Request: `search-request` — `q` (required), `folder_scope` (folder uuid or null = everything), `cursor`
+**API:** `GET /search`
+- Request: `search-request` as query parameters — `q` (required), `folder_scope` (folder uuid or null = everything), `cursor`
 - Response: `search-page` — `results` of `search-result`: `save`, `match_reason` (`title|transcript|body|tag|folder|semantic`), `fragment`, `jump_target` (`0:42` timestamp or heading anchor), `score`
 - Tap jump chip → opens the note **at the anchor** (§6), not at the top
 

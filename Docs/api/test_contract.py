@@ -21,15 +21,22 @@ Run from the repo root:
 from __future__ import annotations
 
 import json
+import importlib
 import sys
 from pathlib import Path
-
-from referencing import Registry, Resource
 
 try:
     from jsonschema import Draft202012Validator
 except ImportError:  # pragma: no cover
     print("error: `pip install jsonschema>=4.21` first", file=sys.stderr)
+    raise SystemExit(2)
+
+try:
+    _referencing = importlib.import_module("referencing")
+    Registry = _referencing.Registry
+    Resource = _referencing.Resource
+except ImportError:  # pragma: no cover
+    print("error: `pip install referencing` first", file=sys.stderr)
     raise SystemExit(2)
 
 HERE = Path(__file__).parent
@@ -50,7 +57,10 @@ def make_validator(schema: dict, registry: Registry) -> Draft202012Validator:
 
 def check_valid(schema: dict, case: dict, label: str, registry: Registry) -> None:
     validator = make_validator(schema, registry)
-    for err in sorted(validator.iter_errors(case), key=lambda e: list(e.absolute_path)):
+    for err in sorted(
+        validator.iter_errors(case),
+        key=lambda e: tuple(str(part) for part in e.absolute_path),
+    ):
         loc = "/".join(map(str, err.absolute_path)) or "<root>"
         fail(f"{label}: [{loc}] {err.message}")
 

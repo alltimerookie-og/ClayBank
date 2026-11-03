@@ -1,0 +1,1 @@
+"""Cloud ASR provider placeholder."""
