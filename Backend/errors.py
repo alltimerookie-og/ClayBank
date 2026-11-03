@@ -26,6 +26,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         "folder_depth_exceeded": 422,
         "reserved_folder_name": 422,
         "index_mismatch": 409,
+        "llm_unavailable": 503,
     }.get(exc.code, 422)
     return JSONResponse(
         status_code=status_code,

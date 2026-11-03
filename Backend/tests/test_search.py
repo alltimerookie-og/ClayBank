@@ -4,7 +4,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from Backend.config import Settings
 from Backend.main import app
+from Backend.search.service import SearchService
 from Backend.store.database import Database
 
 
@@ -64,6 +66,52 @@ def test_ask_requires_citations_and_scope(tmp_path: Path) -> None:
         assert answer["engine"] == "local"
         assert answer["citations"]
         assert answer["citations"][0]["save_id"] == save["id"]
+
+
+def test_cloud_ask_uses_llm_and_keeps_citations(tmp_path: Path) -> None:
+    """Cloud Ask answers come from the provider without dropping citations."""
+    with make_client(tmp_path) as client:
+        save = client.post("/saves", headers=HEADERS, json={"url": "https://example.com/a"}).json()["data"]
+        markdown = "---\nsource: example\n---\n# Pasta\n\nCream sauce basics\n"
+        updated = client.put(
+            f"/saves/{save['id']}/note",
+            headers=HEADERS,
+            json={"markdown": markdown, "updated_at": save["updated_at"]},
+        ).json()["data"]
+        service = SearchService(
+            app.state.database,
+            settings=Settings(
+                meta_model_base_url="https://example.com",
+                meta_model_api_key="test-key",
+                meta_model_name="test-model",
+            ),
+        )
+        service.chat = _CloudAnswer("Cloud summary with citations.")
+
+        result = service.ask(
+            type(
+                "Ask",
+                (),
+                {"question": "pasta", "save_scope": "library", "engine": "cloud"},
+            )()
+        )
+
+        assert result["answer"] == "Cloud summary with citations."
+        assert result["engine"] == "cloud"
+        assert result["citations"][0]["save_id"] == updated["save_id"]
+        assert updated["save_id"] == save["id"]
+
+
+class _CloudAnswer:
+    """Deterministic cloud answer stub."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def answer(self, question: str, context: str) -> str | None:
+        """Return fixed cloud text."""
+        del question, context
+        return self.text
 
 
 def test_search_refuses_index_mismatch(tmp_path: Path) -> None:
