@@ -2,9 +2,9 @@
 
 > Share it now. Find it later. — A save-everything app: capture any link today, find any moment in it later.
 
-**Status:** planning complete and mutually consistent · prototype v2 built and verified · **no application code yet.**
+**Status:** Frontend implemented (Phases 2 + 4 + 5 + 6 + 7 + 8-preview) · Contracts and schemas locked · Backend / native runtime pending. Phase 9 submission package in preparation.
 
-`Docs/Memory.md` is the ground truth (decision log). Everything below defers to it; the prototype v2 wins on look, the docs win on meaning.
+`Docs/Memory.md` is the ground truth (decision log). Prototype v2 (`PrototypingFiles/Claybank_ Interactive Workflow v2.html`) wins on look; the docs win on meaning. Submission index: `Docs/SUBMISSION.md`.
 
 ## Map
 
@@ -74,12 +74,54 @@ python Docs/db/test_schema.py      # server + device DDL conform to DataModel.md
 
 Both must pass **before** shipping any contract-touching change, and fixtures are always regenerated via `python <path_to_repo>/Docs/api/generate_fixtures.py` — never hand-edited. The full working rules live in `Docs/Rules.md`.
 
+## What is implemented (this repo is frontend-focused)
+
+The Flet Python UI runs against fixtures/in-memory coordinators. There is no live backend or Android notification runtime yet.
+
+- **Implemented (frontend, tested):** shell, paste sheet, Inbox, note editor, folders/tags/suggestions/review, Search+Ask UI, Settings+sync banners, notification preview — 52 test files, 374 tests.
+- **Fixture/mock-backed:** capture, search, Ask, sync resolve from `Docs/api/fixtures/*.json` when no backend is attached (`app/app.py:_resolve_default_markdown`).
+- **Backend-dependent (not yet implemented):** FastAPI routers, `POST /saves` canonicalization/dedupe, extraction, ASR, cloud note generation, FTS5+faiss, cursor sync, `DEV_TOKEN` middleware.
+- **Device-runtime-dependent (preview only):** native notification delivery, `POST_NOTIFICATIONS`, OS share target, background clipboard reads (forbidden on Android 10+), GGUF inference.
+- See `Docs/LIMITATIONS.md` for the full claims matrix.
+
+## Quick start
+
+Requires Python 3.12. See `Docs/SETUP.md` for the full guide.
+
+```bash
+python -m venv .venv
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+# macOS/Linux:       source .venv/bin/activate
+pip install --upgrade pip
+pip install -e .
+pip install jsonschema>=4.21 referencing pytest
+flet run
+```
+
+Secrets are placeholders (`DEV_TOKEN`, `X-Device-Id` per `Docs/adr/0006`); see `Docs/SETUP.md` and `.env.example`.
+
+## Verify
+
+```bash
+python Docs/api/test_contract.py
+python Docs/db/test_schema.py
+python -m pytest -q
+python -m compileall app tests
+```
+
+Evidence for this SHA: `Docs/TEST_REPORT.md`. Known limitations: `Docs/LIMITATIONS.md`. Prototype (design truth): `PrototypingFiles/Claybank_ Interactive Workflow v2.html`.
+
 ## Current phases (see `Docs/Phases.md`)
 
-1. Scaffold backend (FastAPI + SQLite) against `Docs/api/openapi.yaml`; contract test green
-2. Flet app shell with 4 tabs + the paste sheet; `POST /saves` always succeeds
-3. Tier-1 extraction (yt-dlp / trafilatura) + job states streamed
-4. Cloud ASR + cloud note generation; transcript + note write-back
-5. Local embeddings + FTS5 hybrid search with match reasons
-6. Folders/tags/suggestions + review queue
-7. Folder-scoped Ask with citations
+| Phase | Outcome |
+|---|---|
+| 0 Decisions | Done — 6 docs, ADRs 0001-0008, contracts, schemas, prototype v2 |
+| 1 Contract first | Done (schemas+fixtures+contract test) |
+| 2 Capture + Inbox shell | Done — frontend |
+| 3 Tier-1 extraction + ASR | Backend-dependent — deferred (job shape present) |
+| 4 Note generation + editor | Frontend done; generation is backend/cloud |
+| 5 Organization (folders/tags/suggestions/review) | Done — frontend |
+| 6 Search + Ask | Frontend done; retrieval is fixture-backed |
+| 7 Sync + Settings | Frontend done; live sync is backend-dependent |
+| 8 Spike-gated capture surfaces | **Frontend accepted, native spike INCONCLUSIVE** — paste sheet is shipped path |
+| 9 Remote submission package | **In progress** — video + tag pending user authorization |
