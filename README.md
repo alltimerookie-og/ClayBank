@@ -6,14 +6,14 @@
 
 A private internal decision log drives this repository: the published docs defer to it; the prototype v2 wins on look, the docs win on meaning.
 
-**License & ownership:** `LICENSE` (plain-text SPDX-style, GitHub-detectable) — core idea and repository belong to Md. Shefayet Hossain ([@alltimerookie-og](https://github.com/alltimerookie-og) · <shefayet.dev@gmail.com>); all rights reserved, permission-required reuse. Contributors keep rights to their own contributions while granting the project a license to ship them (§Contributions); third-party components stay under their own upstream licenses (§Third-party Components + §Component Record).
+**License:** `LICENSE` — GNU Affero General Public License v3.0 only (`AGPL-3.0-only`, SPDX identifier `AGPL-3.0-only`). Copyright 2026 Md. Shefayet Hossain ([@alltimerookie-og](https://github.com/alltimerookie-og) · <shefayet.dev@gmail.com>). Contributions are accepted under the same license; third-party components stay under their own upstream licenses (§Third-party Components + §Component Record).
 
 ## Map
 
 ```
 ClayBank/
 ├── README.md                        ← this index
-├── LICENSE                          ← ownership alltimerookie-og · shefayet.dev@gmail.com · Md. Shefayet Hossain; CLA in §Contributions, third-party rules in §Third-party Components, per-component record in §Component Record
+├── LICENSE                          ← AGPL-3.0-only; copyright 2026 Md. Shefayet Hossain (alltimerookie-og · shefayet.dev@gmail.com); contributions under the same license; third-party rules in §Third-party Components, per-component record in §Component Record
 ├── Instructions/                    ← per-role build instructions
 │   ├── README.md                    ← index + orientation order
 │   ├── ui-developer.md              ← Flet app role: fidelity to prototype v2 + honest states
