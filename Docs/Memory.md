@@ -1,6 +1,6 @@
 # Claybank — Memory
 
-**Status:** Docs locked after Phase 0 grilling · no code yet
+**Status:** Docs locked after Phase 0 grilling (2026-10-31) · frontend implemented (Phases 2+4+5+6+7+8-preview) · backend pending (see Current state below)
 **Purpose:** track what has been completed and what is currently being worked on. Update this regularly once coding starts.
 
 ## Project root
@@ -54,21 +54,22 @@ Earlier versions of this file named `C:\Users\shefa_hqr4jwj\Project39\Proto39`. 
 - **Capture surfaces:** in-app paste sheet = guaranteed demo path; notification → foreground capture sheet (in scope, spike-gated — background clipboard reads are impossible on Android 10+); OS share target (in scope if the notification spike succeeds); floating bubble = post-hackathon. `POST_NOTIFICATIONS` is requested after the first successful save, never on launch. In-app link input is pure Flet (`ft.Clipboard().get/set`); the notification spike candidate is the `flet-android-notifications` extension (wraps `flutter_local_notifications`: action buttons, progress, foreground service; needs a one-time build patcher for manifest/Gradle). Spike risk narrowed to clipboard read timing — read after the sheet is visible, not on first frame; if the read is empty keep the TextField focused for keyboard paste.
 - **Rejected with reasons (each recorded in an ADR):** Flutter (ADR 0001), Parakeet Redux (Avian languages only, no pip path — superseded by cloud-first ASR), EmbeddingGemma (good but 768-dim, Apache‑2.0, and 2.7× larger than e5-small on device; revisit if the index moves server-side), Ollama (external daemon), Virtual RAM (harmful — paging weights), NPU/GPU acceleration (MediaTek demo device), Agent-Reach as a dependency (ADR 0007), ScrapeGraphAI (ADR 0007).
 
-## Current state
+## Current state (updated 2026-11-03)
 
-Planning docs complete and mutually consistent. Prototype v2 exists. No application code yet.
+Docs locked 2026-10-31 and tracked on `aqib`. Frontend phases implemented on `aqib` against those docs:
+
+- **Phases 2, 4, 5, 6, 7, 8-preview implemented as Flet Python UI** — shell, paste sheet, Inbox/processing, note editor, folders/tags/suggestions/review, Search+Ask, Settings+sync coordinators, notification preview (`app/`, `tests/` — 52 test files, 374 passing on this host).
+- **Phase 8 native notification spike: INCONCLUSIVE** — desktop preview exists (`app/views/capture/`); native `flet-android-notifications` delivery, `POST_NOTIFICATIONS`, and OS share-target are unverified on device. Guaranteed path is the in-app paste sheet (`Docs/LIMITATIONS.md`).
+- **Backend not implemented here** — FastAPI capture/extraction/ASR/LLM/FTS5+faiss/cursor sync remain backend-dependent; fixtures in `Docs/api/fixtures/*.json` stand in.
+- **Phase 9 submission package in progress** — this report; README cold-reviewer overhaul; `Docs/SETUP.md` + `.env.example` + `Docs/TEST_REPORT.md` (374+contract+schema green) + `Docs/LIMITATIONS.md` + `Docs/SUBMISSION.md` + `Docs/DEMO_SCRIPT.md` committed and pushed. Video + screenshots + tag pending user authorization.
 
 ## Next step
 
-Recorded in order in `Docs/Phases.md`:
+1. User records demo per `Docs/DEMO_SCRIPT.md` and supplies the link/file (video is still PENDING).
+2. Tag `claybank-submission-v1` after user authorizes (do not create until then).
+3. External submission fields (platform, metadata, visibility, deadline, rubric) remain unresolved — supplied by user when available.
 
-1. Scaffold backend (FastAPI + SQLite) against `Docs/api/openapi.yaml`; contract test green.
-2. Flet app shell with 4 tabs + the paste sheet; `POST /saves` always succeeds.
-3. Tier-1 extraction (yt-dlp / trafilatura) + job states streamed.
-4. Cloud ASR + cloud note generation; transcript + note write-back.
-5. Local embeddings + FTS5 hybrid search with match reasons.
-6. Folders/tags/suggestions + review queue.
-7. Folder-scoped Ask with citations.
+Historical Phase order `Docs/Phases.md` remains the build order; Phases 3 and backend parts of 4/7 stay deferred and belong to the backend owner.
 
 ## Updating this file
 
